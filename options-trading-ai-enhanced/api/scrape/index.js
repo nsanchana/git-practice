@@ -69,10 +69,10 @@ Provide a detailed analysis in the following JSON format. For each category, pro
 
 Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide meaningful insights. Return ONLY valid JSON.`
 
-    console.log('[CompanyAnalysis] Calling Anthropic API with model claude-3-5-sonnet-20241022...')
+    console.log('[CompanyAnalysis] Calling Anthropic API with model claude-sonnet-4-20250514...')
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -191,7 +191,7 @@ Be concise and actionable.`
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }]
     })
