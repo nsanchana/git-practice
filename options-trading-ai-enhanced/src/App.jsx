@@ -23,25 +23,17 @@ function App() {
   const [lastRefresh, setLastRefresh] = useState(new Date())
 
   useEffect(() => {
-    // Check authentication status on mount
-    const checkAuth = async () => {
+    // Check authentication status from localStorage
+    const storedUser = localStorage.getItem('unicron_user')
+    if (storedUser) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          credentials: 'include'
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setUser(data.user)
-        }
+        setUser(JSON.parse(storedUser))
       } catch (error) {
-        console.error('Auth check failed:', error)
-      } finally {
-        setLoading(false)
+        console.error('Failed to parse stored user:', error)
+        localStorage.removeItem('unicron_user')
       }
     }
-
-    checkAuth()
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -79,6 +71,8 @@ function App() {
 
   const handleLoginSuccess = (userData) => {
     setUser(userData)
+    // Store user in localStorage
+    localStorage.setItem('unicron_user', JSON.stringify(userData))
   }
 
   const handleLogout = async () => {
@@ -87,13 +81,16 @@ function App() {
         method: 'POST',
         credentials: 'include'
       })
-      setUser(null)
-      // Clear local data
-      setResearchData([])
-      setTradeData([])
     } catch (error) {
       console.error('Logout failed:', error)
     }
+
+    // Clear user and localStorage
+    setUser(null)
+    localStorage.removeItem('unicron_user')
+    // Clear local data
+    setResearchData([])
+    setTradeData([])
   }
 
   // Show loading spinner while checking auth

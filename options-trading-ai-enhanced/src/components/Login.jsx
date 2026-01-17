@@ -27,7 +27,8 @@ function Login({ onLoginSuccess }) {
         throw new Error(data.error || 'Authentication failed')
       }
 
-      // Call parent callback on success
+      // Store user in localStorage and call parent callback
+      localStorage.setItem('unicron_user', JSON.stringify(data.user))
       onLoginSuccess(data.user)
     } catch (err) {
       setError(err.message)
