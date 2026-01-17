@@ -75,7 +75,7 @@ This workspace contains a fully functional options trading analysis tool with th
 ### 🚀 Getting Started
 1. **Install Dependencies**: `npm install`
 2. **Start Application**: `npm start` (runs both frontend and proxy servers)
-3. **Access App**: Open http://localhost:3000 in your browser
+3. **Access App**: Open http://localhost:5173 in your browser
 
 ### 📁 Project Structure
 - `src/components/`: React components (CompanyResearch, TradeReview)

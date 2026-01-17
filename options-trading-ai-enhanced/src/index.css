@@ -17,11 +17,11 @@
 
 .light-mode {
   color: rgba(17, 24, 39, 0.87);
-  background-color: #f9fafb;
+  background-color: #ffffff;
 }
 
 .light-mode body {
-  background-color: #f9fafb;
+  background-color: #ffffff;
 }
 
 #root {
