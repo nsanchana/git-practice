@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, BarChart3, Settings, Download, RefreshCw } from 'lucide-react'
+import { TrendingUp, BarChart3, Settings, Download, RefreshCw, LogOut } from 'lucide-react'
 import CompanyResearch from './components/CompanyResearch'
 import TradeReview from './components/TradeReview'
 import Dashboard from './components/Dashboard'
 import SettingsPanel from './components/SettingsPanel'
 import UnicronIcon from './components/UnicronIcon'
+import Login from './components/Login'
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from './utils/storage'
 
 function App() {
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [researchData, setResearchData] = useState([])
   const [tradeData, setTradeData] = useState([])
@@ -19,7 +22,31 @@ function App() {
   const [lastRefresh, setLastRefresh] = useState(new Date())
 
   useEffect(() => {
-    // Load saved data on component mount
+    // Check authentication status on mount
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/auth/me', {
+          credentials: 'include'
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setUser(data.user)
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [])
+
+  useEffect(() => {
+    // Load saved data only when authenticated
+    if (!user) return
+
     const savedResearch = loadFromLocalStorage('researchData')
     const savedTrades = loadFromLocalStorage('tradeData')
     const savedSettings = loadFromLocalStorage('settings')
@@ -34,7 +61,7 @@ function App() {
     }, 10 * 60 * 1000) // 10 minutes
 
     return () => clearInterval(refreshInterval)
-  }, [])
+  }, [user])
 
   const handleExportResearch = () => {
     exportToCSV(researchData, 'company-research')
@@ -47,6 +74,42 @@ function App() {
   const handleSettingsUpdate = (newSettings) => {
     setSettings(newSettings)
     saveToLocalStorage('settings', newSettings)
+  }
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:3001/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      setUser(null)
+      // Clear local data
+      setResearchData([])
+      setTradeData([])
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login if not authenticated
+  if (!user) {
+    return <Login onLoginSuccess={handleLoginSuccess} />
   }
 
   const tabs = [
@@ -70,7 +133,7 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-400">
-                Last refresh: {lastRefresh.toLocaleTimeString()}
+                <span className="text-blue-400 font-medium">{user.username}</span> • Last refresh: {lastRefresh.toLocaleTimeString()}
               </div>
               <button
                 onClick={() => setLastRefresh(new Date())}
@@ -78,6 +141,14 @@ function App() {
                 title="Refresh data"
               >
                 <RefreshCw className="h-5 w-5" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
               </button>
               {activeTab === 'research' && researchData.length > 0 && (
                 <button

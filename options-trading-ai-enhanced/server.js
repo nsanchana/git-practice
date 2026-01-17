@@ -4,6 +4,14 @@ import * as cheerio from 'cheerio'
 import cors from 'cors'
 import Anthropic from '@anthropic-ai/sdk'
 import dotenv from 'dotenv'
+import {
+  createUser,
+  findUserByUsername,
+  findUserById,
+  verifyPassword,
+  requireAuth,
+  getSessionConfig
+} from './auth.js'
 
 // Load environment variables
 dotenv.config()
@@ -12,8 +20,14 @@ const app = express()
 const PORT = 3001
 
 // Middleware
-app.use(cors())
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL
+    : 'http://localhost:5173',
+  credentials: true
+}))
 app.use(express.json())
+app.use(getSessionConfig(process.env.SESSION_SECRET))
 
 // Rate limiting helper
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -453,8 +467,111 @@ async function scrapeRecentDevelopments(symbol) {
   }
 }
 
-// API Routes
-app.post('/api/scrape', async (req, res) => {
+// Authentication Routes
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, email } = req.body
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' })
+    }
+
+    // Check if user already exists
+    const existingUser = await findUserByUsername(username)
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists' })
+    }
+
+    // Create new user
+    const user = await createUser(username, password, email)
+
+    // Set session
+    req.session.userId = user.id
+    req.session.username = user.username
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    })
+  } catch (error) {
+    console.error('Registration error:', error)
+    res.status(500).json({ error: 'Registration failed' })
+  }
+})
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' })
+    }
+
+    // Find user
+    const user = await findUserByUsername(username)
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Verify password
+    const isValid = await verifyPassword(password, user.password)
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Set session
+    req.session.userId = user.id
+    req.session.username = user.username
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    res.status(500).json({ error: 'Login failed' })
+  }
+})
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' })
+    }
+    res.json({ success: true })
+  })
+})
+
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+  try {
+    const user = await findUserById(req.session.userId)
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    })
+  } catch (error) {
+    console.error('Get user error:', error)
+    res.status(500).json({ error: 'Failed to get user' })
+  }
+})
+
+// Protected API Routes (require authentication)
+app.post('/api/scrape', requireAuth, async (req, res) => {
   try {
     const { symbol, section } = req.body
 
@@ -499,7 +616,7 @@ app.post('/api/scrape', async (req, res) => {
 })
 
 // Earnings and events endpoint
-app.post('/api/scrape/earnings-events', async (req, res) => {
+app.post('/api/scrape/earnings-events', requireAuth, async (req, res) => {
   try {
     const { symbol, expirationDate } = req.body
 
@@ -730,7 +847,7 @@ app.post('/api/scrape/earnings-events', async (req, res) => {
 })
 
 // Stock price endpoint - scrapes from stockanalysis.com
-app.post('/api/scrape/stock-price', async (req, res) => {
+app.post('/api/scrape/stock-price', requireAuth, async (req, res) => {
   try {
     const { symbol } = req.body
 
