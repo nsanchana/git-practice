@@ -1,16 +1,17 @@
-// Simple Vercel serverless function for login
-module.exports = async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version')
-  res.setHeader('Content-Type', 'application/json')
-
-  // Handle OPTIONS request
+export default async function handler(req, res) {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     return res.status(200).end()
   }
+
+  // Set CORS headers for actual request
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Content-Type', 'application/json')
 
   // Only allow POST
   if (req.method !== 'POST') {
@@ -18,17 +19,10 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Vercel automatically parses JSON body
-    const body = req.body || {}
-    const { username, password } = body
-
-    console.log('Login attempt:', { username, hasPassword: !!password, bodyType: typeof req.body })
+    const { username, password } = req.body
 
     if (!username || !password) {
-      return res.status(400).json({
-        error: 'Username and password are required',
-        debug: { receivedUsername: !!username, receivedPassword: !!password }
-      })
+      return res.status(400).json({ error: 'Username and password required' })
     }
 
     // Hardcoded credentials
@@ -41,15 +35,10 @@ module.exports = async function handler(req, res) {
           email: null
         }
       })
-    } else {
-      return res.status(401).json({ error: 'Invalid credentials' })
     }
+
+    return res.status(401).json({ error: 'Invalid credentials' })
   } catch (error) {
-    console.error('Login error:', error)
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-      stack: error.stack
-    })
+    return res.status(500).json({ error: error.message })
   }
 }
