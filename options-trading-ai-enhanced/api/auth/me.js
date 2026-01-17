@@ -1,5 +1,5 @@
 // Simple Vercel serverless function for auth check
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')

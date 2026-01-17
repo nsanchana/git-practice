@@ -21,6 +21,12 @@ function Login({ onLoginSuccess }) {
         body: JSON.stringify({ username, password })
       })
 
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned an invalid response. Please check Vercel deployment logs.')
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
@@ -31,6 +37,7 @@ function Login({ onLoginSuccess }) {
       localStorage.setItem('unicron_user', JSON.stringify(data.user))
       onLoginSuccess(data.user)
     } catch (err) {
+      console.error('Login error details:', err)
       setError(err.message)
     } finally {
       setLoading(false)
