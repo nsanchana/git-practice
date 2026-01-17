@@ -1,42 +1,12 @@
-import { useState, useEffect } from 'react'
-import { LogIn, UserPlus, Lock, User } from 'lucide-react'
+import { useState } from 'react'
+import { Lock, User } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 
 function Login({ onLoginSuccess }) {
-  const [isRegister, setIsRegister] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [registrationEnabled, setRegistrationEnabled] = useState(true)
-
-  // Check if registration is enabled on mount
-  useEffect(() => {
-    const checkRegistration = async () => {
-      try {
-        // Try to register with empty credentials to check if registration is enabled
-        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ username: '', password: '' })
-        })
-        const data = await response.json()
-
-        // If we get REGISTRATION_DISABLED code, disable registration UI
-        if (data.code === 'REGISTRATION_DISABLED') {
-          setRegistrationEnabled(false)
-          setIsRegister(false) // Force to login tab
-        }
-      } catch (error) {
-        // If check fails, assume registration is enabled
-        setRegistrationEnabled(true)
-      }
-    }
-
-    checkRegistration()
-  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -44,16 +14,11 @@ function Login({ onLoginSuccess }) {
     setLoading(true)
 
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login'
-      const body = isRegister
-        ? { username, password, email }
-        : { username, password }
-
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(body)
+        body: JSON.stringify({ username, password })
       })
 
       const data = await response.json()
@@ -82,49 +47,12 @@ function Login({ onLoginSuccess }) {
           <p className="text-gray-400">Options Trading Analysis Tool</p>
         </div>
 
-        {/* Login/Register Card */}
+        {/* Login Card */}
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 shadow-2xl">
-          {registrationEnabled && (
-            <div className="flex justify-center mb-6">
-              <div className="inline-flex rounded-lg bg-gray-700 p-1">
-                <button
-                  onClick={() => {
-                    setIsRegister(false)
-                    setError('')
-                  }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    !isRegister
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <LogIn className="inline h-4 w-4 mr-2" />
-                  Login
-                </button>
-                <button
-                  onClick={() => {
-                    setIsRegister(true)
-                    setError('')
-                  }}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isRegister
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <UserPlus className="inline h-4 w-4 mr-2" />
-                  Register
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!registrationEnabled && (
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold text-white">Login</h2>
-              <p className="text-sm text-gray-400 mt-1">Private Application</p>
-            </div>
-          )}
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-semibold text-white">Login</h2>
+            <p className="text-sm text-gray-400 mt-1">Private Application</p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
@@ -144,22 +72,6 @@ function Login({ onLoginSuccess }) {
               />
             </div>
 
-            {/* Email (only for registration) */}
-            {isRegister && (
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">
-                  Email (optional)
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="input-primary w-full"
-                />
-              </div>
-            )}
-
             {/* Password */}
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-300">
@@ -173,13 +85,7 @@ function Login({ onLoginSuccess }) {
                 placeholder="Enter your password"
                 className="input-primary w-full"
                 required
-                minLength={6}
               />
-              {isRegister && (
-                <p className="text-xs text-gray-400 mt-1">
-                  Minimum 6 characters
-                </p>
-              )}
             </div>
 
             {/* Error Message */}
@@ -198,28 +104,18 @@ function Login({ onLoginSuccess }) {
               {loading ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>{isRegister ? 'Creating Account...' : 'Logging In...'}</span>
+                  <span>Logging In...</span>
                 </div>
               ) : (
-                <span>
-                  {isRegister ? 'Create Account' : 'Sign In'}
-                </span>
+                <span>Sign In</span>
               )}
             </button>
           </form>
 
-          {/* Info Messages */}
+          {/* Info Message */}
           <div className="mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
             <p className="text-sm text-blue-300">
-              {isRegister ? (
-                <>
-                  <strong>First time here?</strong> Create an account to securely save your research, trades, and settings.
-                </>
-              ) : (
-                <>
-                  <strong>Welcome back!</strong> Sign in to access your portfolio and trading analysis.
-                </>
-              )}
+              <strong>Welcome back!</strong> Sign in to access your portfolio and trading analysis.
             </p>
           </div>
         </div>

@@ -5,10 +5,6 @@ import cors from 'cors'
 import Anthropic from '@anthropic-ai/sdk'
 import dotenv from 'dotenv'
 import {
-  createUser,
-  findUserByUsername,
-  findUserById,
-  verifyPassword,
   requireAuth,
   getSessionConfig
 } from './auth.js'
@@ -467,51 +463,18 @@ async function scrapeRecentDevelopments(symbol) {
   }
 }
 
+// Hardcoded credentials for private application
+const AUTHORIZED_CREDENTIALS = {
+  username: 'nsanchana',
+  password: 'Ns998923++'
+}
+
 // Authentication Routes
 app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, password, email } = req.body
-
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' })
-    }
-
-    // Check if registration is disabled (any user already exists)
-    const { User } = await import('./auth.js')
-    const userCount = await User.count()
-
-    if (userCount > 0) {
-      return res.status(403).json({
-        error: 'Registration is disabled. This application is private.',
-        code: 'REGISTRATION_DISABLED'
-      })
-    }
-
-    // Check if user already exists
-    const existingUser = await findUserByUsername(username)
-    if (existingUser) {
-      return res.status(409).json({ error: 'Username already exists' })
-    }
-
-    // Create new user (only the first user)
-    const user = await createUser(username, password, email)
-
-    // Set session
-    req.session.userId = user.id
-    req.session.username = user.username
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      }
-    })
-  } catch (error) {
-    console.error('Registration error:', error)
-    res.status(500).json({ error: 'Registration failed' })
-  }
+  res.status(403).json({
+    error: 'Registration is disabled. This is a private application.',
+    code: 'REGISTRATION_DISABLED'
+  })
 })
 
 app.post('/api/auth/login', async (req, res) => {
@@ -522,30 +485,23 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' })
     }
 
-    // Find user
-    const user = await findUserByUsername(username)
-    if (!user) {
+    // Check against hardcoded credentials
+    if (username === AUTHORIZED_CREDENTIALS.username && password === AUTHORIZED_CREDENTIALS.password) {
+      // Set session
+      req.session.userId = 1
+      req.session.username = username
+
+      res.json({
+        success: true,
+        user: {
+          id: 1,
+          username: username,
+          email: null
+        }
+      })
+    } else {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
-
-    // Verify password
-    const isValid = await verifyPassword(password, user.password)
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid credentials' })
-    }
-
-    // Set session
-    req.session.userId = user.id
-    req.session.username = user.username
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      }
-    })
   } catch (error) {
     console.error('Login error:', error)
     res.status(500).json({ error: 'Login failed' })
@@ -561,24 +517,15 @@ app.post('/api/auth/logout', (req, res) => {
   })
 })
 
-app.get('/api/auth/me', requireAuth, async (req, res) => {
-  try {
-    const user = await findUserById(req.session.userId)
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  // Return hardcoded user info from session
+  res.json({
+    user: {
+      id: 1,
+      username: req.session.username || 'nsanchana',
+      email: null
     }
-
-    res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      }
-    })
-  } catch (error) {
-    console.error('Get user error:', error)
-    res.status(500).json({ error: 'Failed to get user' })
-  }
+  })
 })
 
 // Protected API Routes (require authentication)
