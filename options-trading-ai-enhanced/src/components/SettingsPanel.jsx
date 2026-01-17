@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Settings, Save, DollarSign, Target, AlertTriangle } from 'lucide-react'
+import { Settings, Save, DollarSign, Target, AlertTriangle, Sun, Moon } from 'lucide-react'
 
-function SettingsPanel({ settings, onSettingsUpdate }) {
+function SettingsPanel({ settings, onSettingsUpdate, theme, onThemeToggle }) {
   const [formData, setFormData] = useState(settings)
   const [saved, setSaved] = useState(false)
 
@@ -130,6 +130,38 @@ function SettingsPanel({ settings, onSettingsUpdate }) {
             />
             <p className="text-xs text-gray-400 mt-1">
               Maximum percentage of portfolio to allocate to a single trade
+            </p>
+          </div>
+
+          {/* Theme Toggle */}
+          <div>
+            <label className="block text-sm font-medium mb-3">Display Theme</label>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => onThemeToggle('light')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  theme === 'light'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Sun className="h-4 w-4" />
+                <span>Light Mode</span>
+              </button>
+              <button
+                onClick={() => onThemeToggle('dark')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  theme === 'dark'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Moon className="h-4 w-4" />
+                <span>Dark Mode</span>
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Choose your preferred color theme for the interface
             </p>
           </div>
 

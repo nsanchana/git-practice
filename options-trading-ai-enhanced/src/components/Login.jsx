@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Lock, User } from 'lucide-react'
 import { API_BASE_URL } from '../config'
 
@@ -7,6 +7,14 @@ function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [theme, setTheme] = useState('dark')
+
+  useEffect(() => {
+    // Load theme preference
+    const savedTheme = localStorage.getItem('unicron_theme') || 'dark'
+    setTheme(savedTheme)
+    document.documentElement.classList.toggle('light-mode', savedTheme === 'light')
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -49,14 +57,22 @@ function Login({ onLoginSuccess }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/20">
+    <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+      theme === 'light'
+        ? 'bg-gradient-to-br from-gray-50 via-white to-blue-50'
+        : 'bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/20'
+    }`}>
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
             Unicron
           </h1>
-          <p className="text-gray-400">Options Trading Analysis Tool</p>
+          <p className={`transition-colors duration-300 ${
+            theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+          }`}>
+            Options Trading Analysis Tool
+          </p>
         </div>
 
         {/* Login Card */}
@@ -133,7 +149,9 @@ function Login({ onLoginSuccess }) {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6 text-gray-400 text-sm">
+        <div className={`text-center mt-6 text-sm transition-colors duration-300 ${
+          theme === 'light' ? 'text-gray-600' : 'text-gray-400'
+        }`}>
           <p>Your data is encrypted and stored securely.</p>
         </div>
       </div>

@@ -21,6 +21,7 @@ function App() {
     maxTradePercentage: 50
   })
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [theme, setTheme] = useState('dark')
 
   useEffect(() => {
     // Check authentication status from localStorage
@@ -33,6 +34,12 @@ function App() {
         localStorage.removeItem('unicron_user')
       }
     }
+
+    // Load theme preference
+    const savedTheme = localStorage.getItem('unicron_theme') || 'dark'
+    setTheme(savedTheme)
+    document.documentElement.classList.toggle('light-mode', savedTheme === 'light')
+
     setLoading(false)
   }, [])
 
@@ -67,6 +74,12 @@ function App() {
   const handleSettingsUpdate = (newSettings) => {
     setSettings(newSettings)
     saveToLocalStorage('settings', newSettings)
+  }
+
+  const handleThemeToggle = (newTheme) => {
+    setTheme(newTheme)
+    localStorage.setItem('unicron_theme', newTheme)
+    document.documentElement.classList.toggle('light-mode', newTheme === 'light')
   }
 
   const handleLoginSuccess = (userData) => {
@@ -118,9 +131,17 @@ function App() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/20 text-white">
+    <div className={`min-h-screen bg-gradient-to-br text-white transition-colors duration-300 ${
+      theme === 'light'
+        ? 'from-gray-50 via-white to-blue-50'
+        : 'from-gray-900 via-gray-900 to-blue-900/20'
+    }`}>
       {/* Header */}
-      <header className="border-b border-gray-700/50 bg-gray-800/80 backdrop-blur-xl">
+      <header className={`border-b bg-opacity-80 backdrop-blur-xl transition-colors duration-300 ${
+        theme === 'light'
+          ? 'border-gray-200 bg-white'
+          : 'border-gray-700/50 bg-gray-800/80'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -172,7 +193,11 @@ function App() {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="border-b border-gray-700/50 bg-gray-800/50 backdrop-blur-lg">
+      <nav className={`border-b bg-opacity-50 backdrop-blur-lg transition-colors duration-300 ${
+        theme === 'light'
+          ? 'border-gray-200 bg-gray-50'
+          : 'border-gray-700/50 bg-gray-800/50'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {tabs.map((tab) => {
@@ -226,6 +251,8 @@ function App() {
           <SettingsPanel
             settings={settings}
             onSettingsUpdate={handleSettingsUpdate}
+            theme={theme}
+            onThemeToggle={handleThemeToggle}
           />
         )}
       </main>
