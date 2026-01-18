@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Search, Loader, ChevronDown, ChevronUp, Star, AlertTriangle, CheckCircle, Save, RefreshCw } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Search, Loader, ChevronDown, ChevronUp, Star, AlertTriangle, CheckCircle, Save, RefreshCw, MessageCircle, Send, Bot, User } from 'lucide-react'
 import { scrapeCompanyData } from '../services/webScraping'
 import { saveToLocalStorage } from '../utils/storage'
 
@@ -15,6 +15,71 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
     optionsData: true,
     recentDevelopments: true
   })
+
+  // Chat state
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef(null)
+
+  // Scroll to bottom of chat when new messages arrive
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chatMessages])
+
+  // Reset chat when company changes
+  useEffect(() => {
+    if (companyData) {
+      setChatMessages([{
+        role: 'assistant',
+        content: `I've analyzed ${companyData.symbol} for you. Feel free to ask me any questions about the company's market position, business model, financials, growth strategy, or options trading opportunities.`
+      }])
+    }
+  }, [companyData?.symbol])
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    if (!chatInput.trim() || chatLoading) return
+
+    const userMessage = chatInput.trim()
+    setChatInput('')
+
+    // Add user message to chat
+    const newMessages = [...chatMessages, { role: 'user', content: userMessage }]
+    setChatMessages(newMessages)
+    setChatLoading(true)
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: userMessage,
+          companyData: companyData,
+          chatHistory: newMessages.slice(-10) // Send last 10 messages for context
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get response')
+      }
+
+      const data = await response.json()
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+    } catch (err) {
+      console.error('Chat error:', err)
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.'
+      }])
+    } finally {
+      setChatLoading(false)
+    }
+  }
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -395,6 +460,86 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
           {renderSection('Technical Analysis', 'technicalAnalysis', companyData.technicalAnalysis, companyData.technicalAnalysis?.rating)}
           {renderSection('Options Market Data', 'optionsData', companyData.optionsData, companyData.optionsData?.rating)}
           {renderSection('Recent Developments', 'recentDevelopments', companyData.recentDevelopments, companyData.recentDevelopments?.rating)}
+
+          {/* Chat Interface */}
+          <div className="card">
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <MessageCircle className="h-5 w-5 text-primary-400" />
+                <h3 className="text-lg font-semibold">Ask Questions About {companyData.symbol}</h3>
+              </div>
+              {chatOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </button>
+
+            {chatOpen && (
+              <div className="px-4 pb-4">
+                {/* Chat Messages */}
+                <div className="bg-gray-800 rounded-lg p-4 h-80 overflow-y-auto mb-4">
+                  {chatMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start space-x-3 mb-4 ${
+                        msg.role === 'user' ? 'justify-end' : ''
+                      }`}
+                    >
+                      {msg.role === 'assistant' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                          <Bot className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          msg.role === 'user'
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-gray-700 text-gray-200'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                          <User className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="bg-gray-700 rounded-lg p-3">
+                        <Loader className="h-5 w-5 animate-spin text-primary-400" />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask about market position, growth strategy, options trading..."
+                    className="input-primary flex-1"
+                    disabled={chatLoading}
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
