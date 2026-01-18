@@ -4,7 +4,6 @@ import CompanyResearch from './components/CompanyResearch'
 import TradeReview from './components/TradeReview'
 import Dashboard from './components/Dashboard'
 import SettingsPanel from './components/SettingsPanel'
-import UnicronIcon from './components/UnicronIcon'
 import Login from './components/Login'
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from './utils/storage'
 import { API_BASE_URL } from './config'
@@ -145,7 +144,11 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <UnicronIcon className="h-10 w-10" />
+              <img
+                src="/unicron-logo.png"
+                alt="Unicron Logo"
+                className="h-10 w-10 object-contain"
+              />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Unicron
               </h1>
