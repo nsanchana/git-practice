@@ -8,6 +8,17 @@ import Login from './components/Login'
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from './utils/storage'
 import { API_BASE_URL } from './config'
 
+// Helper function to format time as HH:MM:SS with DD/MM/YYYY
+const formatDateTime = (date) => {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -155,7 +166,7 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-400">
-                <span className="text-blue-400 font-medium">{user.username}</span> • Last refresh: {lastRefresh.toLocaleTimeString()}
+                <span className="text-blue-400 font-medium">{user.username}</span> • Last refresh: {formatDateTime(lastRefresh)}
               </div>
               <button
                 onClick={() => setLastRefresh(new Date())}

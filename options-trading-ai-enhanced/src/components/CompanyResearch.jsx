@@ -3,6 +3,24 @@ import { Search, Loader, ChevronDown, ChevronUp, Star, AlertTriangle, CheckCircl
 import { scrapeCompanyData } from '../services/webScraping'
 import { saveToLocalStorage } from '../utils/storage'
 
+// Helper function to format dates as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateString) => {
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+// Helper function to format time as HH:MM:SS
+const formatTime = (dateString) => {
+  const date = new Date(dateString)
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${hours}:${minutes}:${seconds}`
+}
+
 function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
   const [symbol, setSymbol] = useState('')
   const [loading, setLoading] = useState(false)
@@ -743,7 +761,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
                 <div className="flex-1 cursor-pointer" onClick={() => handleViewResearch(item)}>
                   <h4 className="font-semibold">{item.symbol}</h4>
                   <p className="text-sm text-gray-400">
-                    {new Date(item.date).toLocaleDateString()} • {new Date(item.lastRefresh).toLocaleTimeString()}
+                    {formatDateDDMMYYYY(item.date)} • {formatTime(item.lastRefresh)}
                   </p>
                 </div>
                 <div className="flex items-center space-x-3">

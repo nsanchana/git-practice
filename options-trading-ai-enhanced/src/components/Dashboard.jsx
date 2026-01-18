@@ -1,7 +1,16 @@
 import { useMemo } from 'react'
 import { DollarSign, TrendingUp, Target, Calendar, AlertCircle, CheckCircle, Trash2, Edit } from 'lucide-react'
-import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
+import { startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import { saveToLocalStorage } from '../utils/storage'
+
+// Helper function to format dates as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateString) => {
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
 
 function Dashboard({ researchData, tradeData, setTradeData, settings }) {
   const handleDeleteTrade = (tradeId) => {
@@ -38,7 +47,7 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
     setTradeData(updatedTradeData)
     saveToLocalStorage('tradeData', updatedTradeData)
 
-    alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${new Date().toLocaleDateString()}.`)
+    alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${formatDateDDMMYYYY(new Date().toISOString())}.`)
   }
   const dashboardStats = useMemo(() => {
     const now = new Date()
@@ -283,7 +292,7 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                   <div>
                     <p className="font-semibold">{item.symbol}</p>
                     <p className="text-sm text-gray-400">
-                      {format(new Date(item.date), 'MMM dd, yyyy')}
+                      {formatDateDDMMYYYY(item.date)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -335,7 +344,7 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                       )}
                     </p>
                     <p className="text-sm text-gray-400">
-                      {format(new Date(item.timestamp), 'MMM dd, yyyy')}
+                      {formatDateDDMMYYYY(item.timestamp)}
                     </p>
                   </div>
                   <div className="flex items-center space-x-3">

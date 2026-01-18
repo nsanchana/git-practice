@@ -1,7 +1,16 @@
-import { useState } from 'react'
-import { Calculator, TrendingUp, AlertTriangle, CheckCircle, DollarSign, Save, Trash2, Edit } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Calculator, TrendingUp, AlertTriangle, CheckCircle, DollarSign, Save, Trash2, Edit, MessageCircle, Send, Bot, User, ChevronDown, ChevronUp, Loader } from 'lucide-react'
 import { calculateOptionGreeks, assessTradeRisk, generateTradeRecommendation } from '../utils/optionsCalculations'
 import { saveToLocalStorage } from '../utils/storage'
+
+// Helper function to format dates as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateString) => {
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
 
 function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData }) {
   const [selectedSymbol, setSelectedSymbol] = useState('')
@@ -14,6 +23,63 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   const [priceError, setPriceError] = useState('')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  // Chat state
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef(null)
+
+  // Scroll to bottom of chat when new messages arrive
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chatMessages])
+
+  // Reset chat when analysis changes
+  useEffect(() => {
+    setChatMessages([])
+    setChatOpen(false)
+  }, [analysis?.id])
+
+  // Handle sending chat message
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    if (!chatInput.trim() || chatLoading || !analysis) return
+
+    const userMessage = { role: 'user', content: chatInput.trim() }
+    setChatMessages(prev => [...prev, userMessage])
+    setChatInput('')
+    setChatLoading(true)
+
+    try {
+      const response = await fetch('/api/trade-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message: userMessage.content,
+          tradeData: analysis,
+          chatHistory: chatMessages
+        })
+      })
+
+      if (!response.ok) throw new Error('Chat request failed')
+
+      const data = await response.json()
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+    } catch (error) {
+      console.error('Chat error:', error)
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.'
+      }])
+    } finally {
+      setChatLoading(false)
+    }
+  }
 
   // Auto-determine option type based on trade type
   const optionType = tradeType === 'cashSecuredPut' ? 'put' : 'call'
@@ -343,7 +409,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       setAnalysis(executedTrade)
     }
 
-    alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${new Date().toLocaleDateString()}.`)
+    alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${formatDateDDMMYYYY(new Date().toISOString())}.`)
   }
 
   const getRecommendationColor = (action) => {
@@ -735,6 +801,95 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
               )}
             </div>
           </div>
+
+          {/* Chat Interface */}
+          <div className="card">
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <MessageCircle className="h-5 w-5 text-primary-400" />
+                <h3 className="text-lg font-semibold">Ask Questions About This Trade</h3>
+              </div>
+              {chatOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </button>
+
+            {chatOpen && (
+              <div className="px-4 pb-4">
+                {/* Chat Messages */}
+                <div className="bg-gray-800 rounded-lg p-4 h-80 overflow-y-auto mb-4">
+                  {chatMessages.length === 0 && (
+                    <div className="text-center text-gray-400 py-8">
+                      <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">Ask me anything about this trade!</p>
+                      <p className="text-xs mt-2 text-gray-500">
+                        Try: "What are the risks?", "Should I adjust the strike?", "What's my breakeven?"
+                      </p>
+                    </div>
+                  )}
+                  {chatMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-start space-x-3 mb-4 ${
+                        msg.role === 'user' ? 'justify-end' : ''
+                      }`}
+                    >
+                      {msg.role === 'assistant' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                          <Bot className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          msg.role === 'user'
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-gray-700 text-gray-200'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                          <User className="h-5 w-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="bg-gray-700 rounded-lg p-3">
+                        <Loader className="h-5 w-5 animate-spin text-primary-400" />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask about risk management, adjustments, alternative strategies..."
+                    className="input-primary flex-1"
+                    disabled={chatLoading}
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -744,42 +899,37 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
           <h3 className="text-lg font-semibold mb-4">Trade Analysis History</h3>
           <div className="space-y-4">
             {tradeData.slice(0, 10).map((trade, index) => (
-              <div key={index} className={`flex justify-between items-center p-4 rounded-lg ${
+              <div key={index} className={`p-4 rounded-lg ${
                 trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
                 trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
                 'bg-gray-700'
               }`}>
-                <div className="flex-1">
-                  <h4 className="font-semibold">
-                    {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Put' : 'Call'}
-                    {trade.status === 'executed' && (
-                      <span className="ml-2 text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
-                        EXECUTED
+                {/* Top Row: Symbol, Type, and Status */}
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-semibold text-lg">
+                      {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
+                    </h4>
+                    <div className="flex items-center space-x-2 mt-1">
+                      {trade.status === 'executed' && (
+                        <span className="text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
+                          EXECUTED
+                        </span>
+                      )}
+                      {trade.status === 'planned' && (
+                        <span className="text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
+                          PLANNED
+                        </span>
+                      )}
+                      {!trade.status && (
+                        <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
+                          RESEARCH
+                        </span>
+                      )}
+                      <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
+                        {trade.recommendation.action}
                       </span>
-                    )}
-                    {trade.status === 'planned' && (
-                      <span className="ml-2 text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
-                        PLANNED
-                      </span>
-                    )}
-                    {!trade.status && (
-                      <span className="ml-2 text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
-                        RESEARCH
-                      </span>
-                    )}
-                  </h4>
-                  <p className="text-sm text-gray-400">
-                    Strike: ${trade.strikePrice} • Exp: {new Date(trade.expirationDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
-                    <div className={`font-semibold ${getRecommendationColor(trade.recommendation.action)}`}>
-                      {trade.recommendation.action}
                     </div>
-                    <p className="text-xs text-gray-400">
-                      {new Date(trade.timestamp).toLocaleDateString()}
-                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     {trade.status === 'planned' && (
@@ -809,6 +959,26 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                         <Trash2 className="h-4 w-4 text-red-400" />
                       </button>
                     )}
+                  </div>
+                </div>
+
+                {/* Trade Details Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Strike Price</div>
+                    <div className="text-lg font-bold text-white">${trade.strikePrice}</div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Expiry Date</div>
+                    <div className="text-lg font-bold text-yellow-400">{formatDateDDMMYYYY(trade.expirationDate)}</div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Premium</div>
+                    <div className="text-lg font-bold text-green-400">${trade.premium}</div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Analysis Date</div>
+                    <div className="text-lg font-bold text-gray-300">{formatDateDDMMYYYY(trade.timestamp)}</div>
                   </div>
                 </div>
               </div>
