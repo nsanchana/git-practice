@@ -288,6 +288,8 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
   const renderSection = (title, sectionKey, data, rating) => {
     const isExpanded = expandedSections[sectionKey]
     const isCompanyAnalysis = sectionKey === 'companyAnalysis'
+    const isTechnicalAnalysis = sectionKey === 'technicalAnalysis'
+    const isRecentDevelopments = sectionKey === 'recentDevelopments'
 
     return (
       <div className="card">
@@ -343,6 +345,123 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
                 {renderDetailedSubsection(data.detailedAnalysis.customerBase)}
                 {renderDetailedSubsection(data.detailedAnalysis.growthStrategy)}
                 {renderDetailedSubsection(data.detailedAnalysis.economicMoat)}
+              </div>
+            )}
+
+            {/* Detailed Technical Analysis */}
+            {isTechnicalAnalysis && data.detailedTechnical && (
+              <div>
+                <h4 className="font-medium mb-3 mt-4 text-lg border-b border-gray-600 pb-2">Technical Details</h4>
+
+                {/* 30-60 Day Trend Outlook */}
+                {data.detailedTechnical.trend30to60Days && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedTechnical.trend30to60Days.title}</h5>
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedTechnical.trend30to60Days.content}</p>
+                  </div>
+                )}
+
+                {/* Support & Resistance Levels */}
+                {data.detailedTechnical.supportResistance && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedTechnical.supportResistance.title}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h6 className="text-green-400 font-medium mb-2">Support Levels</h6>
+                        {data.detailedTechnical.supportResistance.support?.length > 0 ? (
+                          <ul className="space-y-1">
+                            {data.detailedTechnical.supportResistance.support.map((level, i) => (
+                              <li key={i} className="text-sm text-gray-300 flex items-center">
+                                <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                                {level}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-gray-400">No support levels identified</p>
+                        )}
+                      </div>
+                      <div>
+                        <h6 className="text-red-400 font-medium mb-2">Resistance Levels</h6>
+                        {data.detailedTechnical.supportResistance.resistance?.length > 0 ? (
+                          <ul className="space-y-1">
+                            {data.detailedTechnical.supportResistance.resistance.map((level, i) => (
+                              <li key={i} className="text-sm text-gray-300 flex items-center">
+                                <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                                {level}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-gray-400">No resistance levels identified</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Options Strategy */}
+                {data.detailedTechnical.optionsStrategy && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedTechnical.optionsStrategy.title}</h5>
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedTechnical.optionsStrategy.content}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Detailed Recent Developments */}
+            {isRecentDevelopments && data.detailedDevelopments && (
+              <div>
+                <h4 className="font-medium mb-3 mt-4 text-lg border-b border-gray-600 pb-2">Event Details</h4>
+
+                {/* Next Earnings Call */}
+                {data.detailedDevelopments.nextEarningsCall && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedDevelopments.nextEarningsCall.title}</h5>
+                    <div className="flex items-center mb-2">
+                      <span className="text-yellow-400 font-medium mr-2">Date:</span>
+                      <span className="text-gray-200">{data.detailedDevelopments.nextEarningsCall.date}</span>
+                    </div>
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedDevelopments.nextEarningsCall.expectation}</p>
+                  </div>
+                )}
+
+                {/* Major Events */}
+                {data.detailedDevelopments.majorEvents && data.detailedDevelopments.majorEvents.events?.length > 0 && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedDevelopments.majorEvents.title}</h5>
+                    <div className="space-y-3">
+                      {data.detailedDevelopments.majorEvents.events.map((event, i) => (
+                        <div key={i} className="border-l-2 border-primary-500 pl-3">
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium text-gray-200">{event.event}</span>
+                            {event.date && <span className="text-xs text-gray-400 ml-2">{event.date}</span>}
+                          </div>
+                          {event.expectedImpact && (
+                            <p className="text-sm text-gray-400 mt-1">{event.expectedImpact}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upcoming Catalysts */}
+                {data.detailedDevelopments.catalysts && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedDevelopments.catalysts.title}</h5>
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedDevelopments.catalysts.content}</p>
+                  </div>
+                )}
+
+                {/* Options Implication */}
+                {data.detailedDevelopments.optionsImplication && (
+                  <div className="bg-gray-700 rounded-lg p-4 mb-3">
+                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedDevelopments.optionsImplication.title}</h5>
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedDevelopments.optionsImplication.content}</p>
+                  </div>
+                )}
               </div>
             )}
 

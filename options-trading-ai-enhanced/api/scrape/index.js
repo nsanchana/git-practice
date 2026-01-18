@@ -152,17 +152,21 @@ Provide a 2-3 sentence analysis focused on:
 
 Be concise and actionable for options traders.`,
 
-      technicalAnalysis: `Analyze this technical data for ${symbol}:
+      technicalAnalysis: `You are a technical analyst. Provide a detailed technical analysis for ${symbol}.
 
 Current Price: ${scrapedData.currentPrice || 'Not available'}
-Additional Metrics: ${JSON.stringify(scrapedData.metrics || [], null, 2)}
 
-Provide a 2-3 sentence analysis focused on:
-1. Current price momentum and trend direction
-2. Whether current technical setup favors selling out-of-the-money puts or covered calls
-3. Suggested technical levels to watch for strike price selection
+Provide your analysis in the following JSON format:
+{
+  "summary": "2-3 sentence overview of current technical setup and momentum",
+  "supportLevels": ["$XXX - description", "$XXX - description"],
+  "resistanceLevels": ["$XXX - description", "$XXX - description"],
+  "trend30to60Days": "Detailed outlook for the next 30-60 days based on technical patterns, momentum indicators, and historical price action. Include specific price targets if the trend continues.",
+  "optionsStrategy": "Specific recommendation on whether to sell puts or covered calls based on the technical setup, with suggested strike price levels",
+  "rating": 7
+}
 
-Be specific and actionable for options traders.`,
+Use your knowledge of ${symbol}'s recent price history, chart patterns, moving averages (50-day, 200-day), RSI, MACD, and volume trends. Be specific with price levels. Return ONLY valid JSON.`,
 
       optionsData: `Analyze this options market data for ${symbol}:
 
@@ -175,24 +179,38 @@ Provide a 2-3 sentence analysis focused on:
 
 Be actionable for options income traders.`,
 
-      recentDevelopments: `Analyze recent news and sentiment for ${symbol}:
+      recentDevelopments: `You are a financial analyst tracking ${symbol}. Provide analysis of recent developments and upcoming events.
 
-News Items: ${JSON.stringify(scrapedData.newsItems || [], null, 2)}
-Sentiment Counts: ${JSON.stringify(scrapedData.sentimentCounts || {}, null, 2)}
+Provide your analysis in the following JSON format:
+{
+  "summary": "2-3 sentence overview of current news sentiment and key developments",
+  "nextEarningsCall": {
+    "date": "Expected date of next earnings call (e.g., 'January 30, 2025' or 'Q1 2025 - exact date TBD')",
+    "expectation": "Brief analysis of what to expect from the earnings report"
+  },
+  "majorEvents": [
+    {
+      "event": "Description of upcoming event or recent major news",
+      "expectedImpact": "How this could impact the stock price",
+      "date": "When this is happening or happened"
+    }
+  ],
+  "catalysts": "Key upcoming catalysts that options traders should be aware of (product launches, regulatory decisions, macro events, etc.)",
+  "optionsImplication": "Whether current news environment favors selling premium or staying on sidelines",
+  "rating": 7
+}
 
-Provide a 2-3 sentence analysis focused on:
-1. Overall sentiment and how it impacts near-term stock movement
-2. Specific news catalysts that could affect options positions
-3. Recommendation on whether current news environment supports entering new options positions
-
-Be concise and actionable.`
+Use your knowledge of ${symbol}'s recent news, earnings schedule, product announcements, and market events. Be specific and current. Return ONLY valid JSON.`
     }
 
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
+    // Use more tokens for technical and recent developments analysis
+    const needsMoreTokens = dataType === 'technicalAnalysis' || dataType === 'recentDevelopments'
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
+      max_tokens: needsMoreTokens ? 1000 : 300,
       messages: [{ role: 'user', content: prompt }]
     })
 
@@ -410,6 +428,7 @@ async function scrapeTechnicalAnalysis(symbol) {
   let rating = 6
   let currentPrice = ''
 
+  // Scrape current price from StockAnalysis
   try {
     const priceUrl = `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
     const response = await axios.get(priceUrl, {
@@ -421,25 +440,82 @@ async function scrapeTechnicalAnalysis(symbol) {
                    $('.text-3xl, .text-4xl').first().text().trim()
     if (currentPrice) {
       metrics.push({ label: 'Current Price', value: currentPrice })
-      rating += 1
     }
   } catch (error) {
     console.log('Technical scraping failed')
   }
 
-  const analysis = await generateAIInsight(symbol, 'technicalAnalysis', { currentPrice, metrics })
+  // Get comprehensive AI analysis
+  const aiResponse = await generateAIInsight(symbol, 'technicalAnalysis', { currentPrice, metrics })
 
-  if (metrics.length === 0) {
-    metrics.push(
+  // Try to parse JSON response from AI
+  let technicalData = null
+  try {
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      technicalData = JSON.parse(jsonMatch[0])
+    }
+  } catch (e) {
+    console.log('Could not parse technical analysis JSON')
+  }
+
+  if (technicalData) {
+    rating = technicalData.rating || 6
+
+    // Add support levels to metrics
+    if (technicalData.supportLevels && technicalData.supportLevels.length > 0) {
+      technicalData.supportLevels.forEach((level, i) => {
+        metrics.push({ label: `Support Level ${i + 1}`, value: level })
+      })
+    }
+
+    // Add resistance levels to metrics
+    if (technicalData.resistanceLevels && technicalData.resistanceLevels.length > 0) {
+      technicalData.resistanceLevels.forEach((level, i) => {
+        metrics.push({ label: `Resistance Level ${i + 1}`, value: level })
+      })
+    }
+
+    // Add signals based on analysis
+    if (technicalData.optionsStrategy) {
+      signals.push({ type: 'info', message: technicalData.optionsStrategy })
+    }
+
+    return {
+      rating: Math.min(rating, 10),
+      analysis: technicalData.summary || 'Technical analysis completed',
+      metrics,
+      signals: signals.length > 0 ? signals : [{ type: 'info', message: 'Technical analysis completed' }],
+      // Detailed technical data for UI
+      detailedTechnical: {
+        trend30to60Days: {
+          title: '30-60 Day Trend Outlook',
+          content: technicalData.trend30to60Days || 'Analysis not available'
+        },
+        supportResistance: {
+          title: 'Support & Resistance Levels',
+          support: technicalData.supportLevels || [],
+          resistance: technicalData.resistanceLevels || []
+        },
+        optionsStrategy: {
+          title: 'Options Strategy Recommendation',
+          content: technicalData.optionsStrategy || 'Analysis not available'
+        }
+      }
+    }
+  }
+
+  // Fallback if AI parsing failed
+  return {
+    rating: Math.min(rating, 10),
+    analysis: typeof aiResponse === 'string' ? aiResponse : 'Technical analysis requires review of chart patterns and indicators.',
+    metrics: metrics.length > 0 ? metrics : [
       { label: 'Price Trend', value: 'Monitor chart patterns' },
       { label: 'Moving Averages', value: 'Compare 50 & 200 day' },
       { label: 'Volume Analysis', value: 'Check accumulation/distribution' }
-    )
+    ],
+    signals: [{ type: 'info', message: 'Use technical indicators to identify optimal entry and exit points' }]
   }
-
-  signals.push({ type: 'info', message: 'Use technical indicators to identify optimal entry and exit points' })
-
-  return { rating: Math.min(rating, 10), analysis, metrics, signals }
 }
 
 async function scrapeOptionsData(symbol) {
@@ -486,66 +562,78 @@ async function scrapeRecentDevelopments(symbol) {
   const metrics = []
   const signals = []
   let rating = 6
-  const newsItems = []
-  let positiveCount = 0
-  let negativeCount = 0
 
+  // Get comprehensive AI analysis for recent developments
+  const aiResponse = await generateAIInsight(symbol, 'recentDevelopments', {})
+
+  // Try to parse JSON response from AI
+  let developmentsData = null
   try {
-    const newsUrl = `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/news/`
-    const response = await axios.get(newsUrl, {
-      headers: { 'User-Agent': USER_AGENT },
-      timeout: 10000
-    })
-    const $ = cheerio.load(response.data)
-
-    $('.news-item, article').slice(0, 5).each((_, item) => {
-      const title = $(item).find('h2, h3, .title').first().text().trim()
-      const time = $(item).find('time, .date').first().text().trim()
-      if (title) {
-        newsItems.push({ title, time: time || 'Recent' })
-      }
-    })
-
-    if (newsItems.length > 0) {
-      rating += 2
-      metrics.push({ label: 'Recent News Items', value: newsItems.length.toString() })
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      developmentsData = JSON.parse(jsonMatch[0])
     }
-
-    const positiveKeywords = ['growth', 'profit', 'beat', 'upgrade', 'bullish', 'gain']
-    const negativeKeywords = ['loss', 'decline', 'downgrade', 'bearish', 'concern', 'warning']
-
-    newsItems.forEach(item => {
-      const text = item.title.toLowerCase()
-      positiveKeywords.forEach(keyword => { if (text.includes(keyword)) positiveCount++ })
-      negativeKeywords.forEach(keyword => { if (text.includes(keyword)) negativeCount++ })
-    })
-
-    if (positiveCount > negativeCount) {
-      signals.push({ type: 'positive', message: 'Recent news shows positive sentiment' })
-      rating += 1
-    } else if (negativeCount > positiveCount) {
-      signals.push({ type: 'warning', message: 'Recent news shows negative sentiment' })
-    }
-  } catch (error) {
-    console.log('News scraping failed')
+  } catch (e) {
+    console.log('Could not parse recent developments JSON')
   }
 
-  const sentimentCounts = { positive: positiveCount, negative: negativeCount }
-  const analysis = await generateAIInsight(symbol, 'recentDevelopments', { newsItems, sentimentCounts, metrics })
+  if (developmentsData) {
+    rating = developmentsData.rating || 6
 
-  if (metrics.length === 0) {
-    metrics.push(
+    // Add earnings info to metrics
+    if (developmentsData.nextEarningsCall) {
+      metrics.push({ label: 'Next Earnings', value: developmentsData.nextEarningsCall.date || 'TBD' })
+    }
+
+    // Add major events count
+    if (developmentsData.majorEvents && developmentsData.majorEvents.length > 0) {
+      metrics.push({ label: 'Upcoming Events', value: developmentsData.majorEvents.length.toString() })
+    }
+
+    // Add signals based on options implication
+    if (developmentsData.optionsImplication) {
+      signals.push({ type: 'info', message: developmentsData.optionsImplication })
+    }
+
+    return {
+      rating: Math.min(rating, 10),
+      analysis: developmentsData.summary || 'Recent developments analysis completed',
+      metrics,
+      signals: signals.length > 0 ? signals : [{ type: 'info', message: 'Monitor upcoming events for trading opportunities' }],
+      // Detailed developments data for UI
+      detailedDevelopments: {
+        nextEarningsCall: {
+          title: 'Next Earnings Call',
+          date: developmentsData.nextEarningsCall?.date || 'Date not available',
+          expectation: developmentsData.nextEarningsCall?.expectation || 'Analysis not available'
+        },
+        majorEvents: {
+          title: 'Major Events & News',
+          events: developmentsData.majorEvents || []
+        },
+        catalysts: {
+          title: 'Upcoming Catalysts',
+          content: developmentsData.catalysts || 'No major catalysts identified'
+        },
+        optionsImplication: {
+          title: 'Options Trading Implication',
+          content: developmentsData.optionsImplication || 'Analysis not available'
+        }
+      }
+    }
+  }
+
+  // Fallback if AI parsing failed
+  return {
+    rating: Math.min(rating, 10),
+    analysis: typeof aiResponse === 'string' ? aiResponse : 'Recent developments analysis requires monitoring news and events.',
+    metrics: [
       { label: 'Earnings Date', value: 'Check upcoming earnings calendar' },
       { label: 'Company Events', value: 'Monitor for catalysts' },
       { label: 'Market Trends', value: 'Follow sector developments' }
-    )
+    ],
+    signals: [{ type: 'info', message: 'Stay updated on company news to identify options trading opportunities' }]
   }
-
-  if (signals.length === 0) {
-    signals.push({ type: 'info', message: 'Stay updated on company news to identify options trading opportunities' })
-  }
-
-  return { rating: Math.min(rating, 10), analysis, metrics, signals }
 }
 
 export default async function handler(req, res) {
