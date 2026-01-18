@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { TrendingUp, BarChart3, Settings, Download, RefreshCw, LogOut } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { TrendingUp, BarChart3, Settings, Download, RefreshCw, LogOut, Cloud, CloudOff } from 'lucide-react'
 import CompanyResearch from './components/CompanyResearch'
 import TradeReview from './components/TradeReview'
 import Dashboard from './components/Dashboard'
@@ -32,6 +32,81 @@ function App() {
   })
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [theme, setTheme] = useState('dark')
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('idle') // 'idle', 'syncing', 'synced', 'error'
+  const [lastCloudSync, setLastCloudSync] = useState(null)
+  const saveTimeoutRef = useRef(null)
+
+  // Load data from cloud
+  const loadFromCloud = useCallback(async (userId) => {
+    try {
+      setCloudSyncStatus('syncing')
+      const response = await fetch(`/api/user-data?userId=${userId}`, {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (!response.ok) throw new Error('Failed to load from cloud')
+
+      const cloudData = await response.json()
+
+      // Use cloud data if it exists, otherwise keep local data
+      if (cloudData.researchData?.length > 0) {
+        setResearchData(cloudData.researchData)
+        saveToLocalStorage('researchData', cloudData.researchData)
+      }
+      if (cloudData.tradeData?.length > 0) {
+        setTradeData(cloudData.tradeData)
+        saveToLocalStorage('tradeData', cloudData.tradeData)
+      }
+      if (cloudData.settings) {
+        setSettings(cloudData.settings)
+        saveToLocalStorage('settings', cloudData.settings)
+      }
+
+      setLastCloudSync(cloudData.lastSynced ? new Date(cloudData.lastSynced) : null)
+      setCloudSyncStatus('synced')
+      return true
+    } catch (error) {
+      console.error('Failed to load from cloud:', error)
+      setCloudSyncStatus('error')
+      return false
+    }
+  }, [])
+
+  // Save data to cloud (debounced)
+  const saveToCloud = useCallback(async (userId, data) => {
+    try {
+      setCloudSyncStatus('syncing')
+      const response = await fetch(`/api/user-data?userId=${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      })
+
+      if (!response.ok) throw new Error('Failed to save to cloud')
+
+      const result = await response.json()
+      setLastCloudSync(new Date(result.lastSynced))
+      setCloudSyncStatus('synced')
+      return true
+    } catch (error) {
+      console.error('Failed to save to cloud:', error)
+      setCloudSyncStatus('error')
+      return false
+    }
+  }, [])
+
+  // Debounced auto-save to cloud
+  const debouncedSaveToCloud = useCallback((userId, data) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToCloud(userId, data)
+    }, 2000) // Save 2 seconds after last change
+  }, [saveToCloud])
 
   useEffect(() => {
     // Check authentication status from localStorage
@@ -57,6 +132,7 @@ function App() {
     // Load saved data only when authenticated
     if (!user) return
 
+    // First load from localStorage for immediate display
     const savedResearch = loadFromLocalStorage('researchData')
     const savedTrades = loadFromLocalStorage('tradeData')
     const savedSettings = loadFromLocalStorage('settings')
@@ -65,13 +141,39 @@ function App() {
     if (savedTrades) setTradeData(savedTrades)
     if (savedSettings) setSettings(savedSettings)
 
+    // Then sync from cloud (will override local data if cloud has data)
+    loadFromCloud(user.id || user.username)
+
     // Auto-refresh every 10 minutes
     const refreshInterval = setInterval(() => {
       setLastRefresh(new Date())
     }, 10 * 60 * 1000) // 10 minutes
 
     return () => clearInterval(refreshInterval)
-  }, [user])
+  }, [user, loadFromCloud])
+
+  // Auto-save to cloud when data changes
+  useEffect(() => {
+    if (!user) return
+
+    // Don't save on initial load
+    const hasData = researchData.length > 0 || tradeData.length > 0
+
+    if (hasData) {
+      debouncedSaveToCloud(user.id || user.username, {
+        researchData,
+        tradeData,
+        settings
+      })
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [user, researchData, tradeData, settings, debouncedSaveToCloud])
 
   const handleExportResearch = () => {
     exportToCSV(researchData, 'company-research')
@@ -165,6 +267,32 @@ function App() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Cloud Sync Status */}
+              <div className="flex items-center space-x-2" title={lastCloudSync ? `Last synced: ${formatDateTime(lastCloudSync)}` : 'Not synced yet'}>
+                {cloudSyncStatus === 'syncing' && (
+                  <div className="flex items-center space-x-1 text-yellow-400">
+                    <Cloud className="h-4 w-4 animate-pulse" />
+                    <span className="text-xs">Syncing...</span>
+                  </div>
+                )}
+                {cloudSyncStatus === 'synced' && (
+                  <div className="flex items-center space-x-1 text-green-400">
+                    <Cloud className="h-4 w-4" />
+                    <span className="text-xs">Synced</span>
+                  </div>
+                )}
+                {cloudSyncStatus === 'error' && (
+                  <div className="flex items-center space-x-1 text-red-400">
+                    <CloudOff className="h-4 w-4" />
+                    <span className="text-xs">Offline</span>
+                  </div>
+                )}
+                {cloudSyncStatus === 'idle' && (
+                  <div className="flex items-center space-x-1 text-gray-500">
+                    <Cloud className="h-4 w-4" />
+                  </div>
+                )}
+              </div>
               <div className="text-sm text-gray-400">
                 <span className="text-blue-400 font-medium">{user.username}</span> • Last refresh: {formatDateTime(lastRefresh)}
               </div>
