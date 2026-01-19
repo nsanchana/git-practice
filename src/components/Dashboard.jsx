@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import { DollarSign, TrendingUp, Target, Calendar, AlertCircle, CheckCircle, Trash2, Edit } from 'lucide-react'
-import { startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
+import {
+  startOfWeek, endOfWeek,
+  startOfMonth, endOfMonth,
+  startOfYear, endOfYear,
+  isWithinInterval
+} from 'date-fns'
 import { saveToLocalStorage } from '../utils/storage'
 
 // Helper function to format dates as DD/MM/YYYY
@@ -10,6 +15,101 @@ const formatDateDDMMYYYY = (dateString) => {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const year = date.getFullYear()
   return `${day}/${month}/${year}`
+}
+
+// Reusable Progress Bar Component for consistency
+const PremiumProgressBar = ({ label, current, min, max, icon: Icon }) => {
+  const barScaleValue = max / 0.8
+  const minPos = (min / barScaleValue) * 100
+  const maxPos = 80 // Max is always at 80% by definition
+  const currentPos = Math.min(Math.max((current / barScaleValue) * 100, 0.5), 100)
+
+  const isMinAchieved = current >= min
+  const isMaxAchieved = current >= max
+
+  return (
+    <div className="card bg-gradient-to-br from-gray-800 to-gray-800/50 border border-gray-700/50">
+      <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          {Icon && <Icon className="h-5 w-5 text-blue-400" />}
+          <span>{label} Premium Progress</span>
+        </div>
+        <div className="text-xs text-gray-400 font-normal">
+          Target: ${min.toLocaleString(undefined, { maximumFractionDigits: 0 })} - ${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </div>
+      </h3>
+
+      <div className="space-y-4">
+        <div>
+          <div className="flex justify-between text-sm mb-3">
+            <span className="font-medium text-blue-400">Current: ${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            <span className="text-gray-500 text-xs">
+              {current > 0 ? `${((current / max) * 100).toFixed(0)}% of max` : '0%'}
+            </span>
+          </div>
+
+          <div className="relative pt-6 pb-2">
+            <div className="w-full bg-gray-700/50 rounded-full h-5 overflow-hidden border border-gray-600/30">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ease-out relative shadow-lg ${isMaxAchieved ? 'bg-gradient-to-r from-green-500 via-emerald-400 to-cyan-400' :
+                    isMinAchieved ? 'bg-gradient-to-r from-yellow-500 via-green-500 to-emerald-400' :
+                      'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500'
+                  }`}
+                style={{ width: `${currentPos}%` }}
+              >
+                <div className="absolute inset-x-0 top-0 h-1/2 bg-white/20 rounded-t-full"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+              </div>
+            </div>
+
+            <div className="absolute top-4 h-9 w-0.5 bg-yellow-400/80 z-10" style={{ left: `${minPos}%` }}>
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-yellow-400 font-bold">Min</span>
+                <span className="text-[10px] text-gray-400 font-medium">${min.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              </div>
+            </div>
+
+            <div className="absolute top-4 h-9 w-0.5 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] z-10" style={{ left: `${maxPos}%` }}>
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Max</span>
+                <span className="text-[10px] text-gray-400 font-medium">${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              </div>
+            </div>
+
+            {current > max && (
+              <div className="absolute -right-1 top-4 h-9 flex items-center" style={{ left: `calc(${Math.min(currentPos, 100)}% + 4px)` }}>
+                <div className="flex items-center space-x-1 animate-pulse">
+                  <span className="text-[10px] font-bold text-cyan-400">+{((current / max - 1) * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between text-[10px] text-gray-500 mt-2 px-1">
+            <span>0%</span>
+            <span>125% of Max</span>
+          </div>
+        </div>
+
+        {isMaxAchieved ? (
+          <div className="flex items-center space-x-2 text-emerald-400 bg-emerald-900/10 p-2 rounded-lg border border-emerald-500/20 text-xs">
+            <CheckCircle className="h-4 w-4" />
+            <span>Target exceeded! Outstanding performance! 🚀</span>
+          </div>
+        ) : isMinAchieved ? (
+          <div className="flex items-center space-x-2 text-green-400 bg-green-900/10 p-2 rounded-lg border border-green-500/20 text-xs">
+            <CheckCircle className="h-4 w-4" />
+            <span>Minimum target achieved! 🎉</span>
+          </div>
+        ) : current > 0 && (
+          <div className="flex items-center space-x-2 text-yellow-400 bg-yellow-900/10 p-2 rounded-lg border border-yellow-500/20 text-xs">
+            <AlertCircle className="h-4 w-4" />
+            <span>Keep pushing to reach your {label.toLowerCase()} goal</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function Dashboard({ researchData, tradeData, setTradeData, settings }) {
@@ -22,25 +122,21 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
   }
 
   const handleEditTrade = () => {
-    // Store the trade to edit and redirect to Trade Review tab
-    // We'll need to communicate this to the parent App component
     alert('To edit this trade, please go to the Trade Review tab where it will be loaded for editing.')
   }
 
   const handleConvertToExecuted = (trade) => {
     if (!confirm('Convert this planned trade to executed? This will update the execution date to today and count toward your weekly goals.')) return
 
-    // Update the trade to executed status with new timestamp
     const executedTrade = {
       ...trade,
       executed: true,
       planned: false,
       status: 'executed',
-      timestamp: new Date().toISOString(), // Update to current date/time
-      executionDate: new Date().toISOString() // Add execution date
+      timestamp: new Date().toISOString(),
+      executionDate: new Date().toISOString()
     }
 
-    // Update tradeData array
     const updatedTradeData = tradeData.map(t =>
       t.id === trade.id ? executedTrade : t
     )
@@ -49,62 +145,50 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
 
     alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${formatDateDDMMYYYY(new Date().toISOString())}.`)
   }
+
   const dashboardStats = useMemo(() => {
     const now = new Date()
-    const weekStart = startOfWeek(now)
-    const weekEnd = endOfWeek(now)
 
-    // Calculate weekly premium from executed trades (saved trades)
-    const weeklyTrades = tradeData.filter(trade => {
-      const tradeDate = new Date(trade.timestamp)
-      // Only include executed trades
-      return trade.executed && isWithinInterval(tradeDate, { start: weekStart, end: weekEnd })
-    })
+    // Intervals
+    const week = { start: startOfWeek(now), end: endOfWeek(now) }
+    const month = { start: startOfMonth(now), end: endOfMonth(now) }
+    const year = { start: startOfYear(now), end: endOfYear(now) }
 
-    const weeklyPremium = weeklyTrades.reduce((sum, trade) => {
-      // Only count premium from executed trades
-      return sum + (trade.premium * trade.quantity * 100)
-    }, 0)
+    // Filter executed trades
+    const executedTrades = tradeData.filter(t => t.executed)
 
-    // Calculate progress positions relative to a scale where Max = 80%
-    // This allows the bar to visually extend up to 125% of Max (reaching 100% width)
-    const maxVal = settings.weeklyPremiumTarget.max || 1
-    const barScaleValue = maxVal / 0.8
-    const minPos = (settings.weeklyPremiumTarget.min / barScaleValue) * 100
-    const maxPos = 80 // Max is always at 80% by definition of barScaleValue
-    const currentPos = (weeklyPremium / barScaleValue) * 100
+    // Calculate premiums
+    const calculatePremium = (interval) => executedTrades
+      .filter(t => isWithinInterval(new Date(t.timestamp), interval))
+      .reduce((sum, t) => sum + (t.premium * t.quantity * 100), 0)
 
-    // Portfolio allocation - only count executed trades
-    const activeTrades = tradeData.filter(trade => trade.executed && !trade.closed)
-    const totalAllocated = activeTrades.reduce((sum, trade) => {
-      return sum + (trade.premium * trade.quantity * 100)
-    }, 0)
+    const weeklyPremium = calculatePremium(week)
+    const monthlyPremium = calculatePremium(month)
+    const yearlyPremium = calculatePremium(year)
 
-    const allocationPercentage = (totalAllocated / settings.portfolioSize) * 100
+    // Targets
+    const pSize = settings.portfolioSize || 1
+    const monthlyTarget = { min: (pSize * 0.25) / 12, max: (pSize * 0.30) / 12 }
+    const yearlyTarget = { min: pSize * 0.25, max: pSize * 0.30 }
 
-    // Recent research
-    const recentResearch = researchData.slice(0, 5)
-
-    // Risk metrics - only check executed trades
-    const highRiskTrades = tradeData.filter(trade =>
-      trade.executed && trade.riskMetrics?.allocationPercentage > settings.maxTradePercentage
-    )
+    // Portfolio allocation
+    const activeTrades = executedTrades.filter(t => !t.closed)
+    const totalAllocated = activeTrades.reduce((sum, t) => sum + (t.premium * t.quantity * 100), 0)
+    const allocationPercentage = (totalAllocated / pSize) * 100
 
     return {
-      portfolioSize: settings.portfolioSize,
+      portfolioSize: pSize,
       weeklyPremium,
-      premiumTarget: settings.weeklyPremiumTarget,
-      premiumProgress: Math.min(Math.max((weeklyPremium / (settings.weeklyPremiumTarget.min || 1)) * 100, 0), 100),
-      premiumProgressMax: Math.min(Math.max((weeklyPremium / maxVal) * 100, 0), 100),
-      barScaleValue,
-      minPos,
-      maxPos,
-      currentPos: Math.min(Math.max(currentPos, 0.5), 100), // Min 0.5% for visibility if > 0
+      monthlyPremium,
+      yearlyPremium,
+      weeklyTarget: settings.weeklyPremiumTarget,
+      monthlyTarget,
+      yearlyTarget,
       totalAllocated,
       allocationPercentage,
       activeTradesCount: activeTrades.length,
-      recentResearch,
-      highRiskTrades: highRiskTrades.length,
+      recentResearch: researchData.slice(0, 5),
+      highRiskTrades: executedTrades.filter(t => (t.riskMetrics?.allocationPercentage || 0) > settings.maxTradePercentage).length,
       totalResearch: researchData.length,
       totalTrades: tradeData.length
     }
@@ -130,15 +214,13 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card text-green-400 bg-green-900/5">
           <div className="flex items-center space-x-3">
-            <TrendingUp className="h-8 w-8 text-green-400" />
+            <TrendingUp className="h-8 w-8" />
             <div>
-              <p className="text-sm text-gray-400">Weekly Premium</p>
-              <p className="text-2xl font-bold">${dashboardStats.weeklyPremium.toFixed(0)}</p>
-              <p className="text-xs text-gray-400">
-                Target: ${settings.weeklyPremiumTarget.min}-${settings.weeklyPremiumTarget.max}
-              </p>
+              <p className="text-sm text-gray-400">Annual Return (Estimated)</p>
+              <p className="text-2xl font-bold">~{((dashboardStats.yearlyPremium / dashboardStats.portfolioSize) * 100).toFixed(1)}%</p>
+              <p className="text-xs text-gray-400">Based on YTD premium</p>
             </div>
           </div>
         </div>
@@ -172,114 +254,29 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
         </div>
       </div>
 
-      {/* Weekly Premium Progress */}
-      <div className="card bg-gradient-to-br from-gray-800 to-gray-800/50 border border-gray-700/50">
-        <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-          <Target className="h-5 w-5 text-blue-400" />
-          <span>Weekly Premium Progress</span>
-        </h3>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between text-sm mb-3">
-              <span className="font-medium text-blue-400">Current: ${dashboardStats.weeklyPremium.toFixed(0)}</span>
-              <span className="text-gray-400">Target: ${settings.weeklyPremiumTarget.min} - ${settings.weeklyPremiumTarget.max}</span>
-            </div>
-
-            {/* Progress bar with markers */}
-            <div className="relative pt-6 pb-2">
-              {/* Background bar */}
-              <div className="w-full bg-gray-700/50 rounded-full h-5 overflow-hidden border border-gray-600/30">
-                {/* Progress fill */}
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ease-out relative shadow-lg ${dashboardStats.weeklyPremium >= settings.weeklyPremiumTarget.max
-                    ? 'bg-gradient-to-r from-green-500 via-emerald-400 to-cyan-400'
-                    : dashboardStats.weeklyPremium >= settings.weeklyPremiumTarget.min
-                      ? 'bg-gradient-to-r from-yellow-500 via-green-500 to-emerald-400'
-                      : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500'
-                    }`}
-                  style={{
-                    width: `${dashboardStats.currentPos}%`,
-                  }}
-                >
-                  {/* Glass highlight effect */}
-                  <div className="absolute inset-x-0 top-0 h-1/2 bg-white/20 rounded-t-full"></div>
-                  {/* Animated shimmer effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
-                </div>
-              </div>
-
-              {/* Min target marker */}
-              <div
-                className="absolute top-4 h-9 w-0.5 bg-yellow-400/80 z-10 transition-all duration-500"
-                style={{ left: `${dashboardStats.minPos}%` }}
-              >
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-yellow-400 font-bold">Min</span>
-                  <span className="text-[10px] text-gray-400 font-medium">${settings.weeklyPremiumTarget.min}</span>
-                </div>
-              </div>
-
-              {/* Max target marker */}
-              <div
-                className="absolute top-4 h-9 w-0.5 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] z-10 transition-all duration-500"
-                style={{ left: `${dashboardStats.maxPos}%` }}
-              >
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Max</span>
-                  <span className="text-[10px] text-gray-400 font-medium">${settings.weeklyPremiumTarget.max}</span>
-                </div>
-              </div>
-
-              {/* Overflow Indicator */}
-              {dashboardStats.weeklyPremium > settings.weeklyPremiumTarget.max && (
-                <div
-                  className="absolute -right-1 top-4 h-9 flex items-center"
-                  style={{ left: `calc(${Math.min(dashboardStats.currentPos, 100)}% + 4px)` }}
-                >
-                  <div className="flex items-center space-x-1 animate-pulse">
-                    <span className="text-[10px] font-bold text-cyan-400 whitespace-nowrap">
-                      +{((dashboardStats.weeklyPremium / settings.weeklyPremiumTarget.max - 1) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Progress percentage text */}
-            <div className="flex justify-between text-[10px] text-gray-500 mt-2 px-1">
-              <span>0%</span>
-              <span className="font-semibold text-blue-400">
-                {dashboardStats.weeklyPremium > 0 ? (
-                  <>
-                    {dashboardStats.weeklyPremium.toFixed(0)} ({((dashboardStats.weeklyPremium / settings.weeklyPremiumTarget.max) * 100).toFixed(0)}% of max)
-                  </>
-                ) : '0'}
-              </span>
-              <span>125% of Max</span>
-            </div>
-          </div>
-
-          {dashboardStats.premiumProgress >= 100 && (
-            <div className="flex items-center space-x-2 text-green-400 bg-green-900/20 p-3 rounded-lg border border-green-500/30">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm font-medium">Weekly minimum target achieved! 🎉</span>
-            </div>
-          )}
-
-          {dashboardStats.weeklyPremium >= settings.weeklyPremiumTarget.max && (
-            <div className="flex items-center space-x-2 text-emerald-400 bg-emerald-900/20 p-3 rounded-lg border border-emerald-500/30">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm font-medium">Maximum target exceeded! Outstanding performance! 🚀</span>
-            </div>
-          )}
-
-          {dashboardStats.premiumProgress < 75 && dashboardStats.premiumProgress > 0 && (
-            <div className="flex items-center space-x-2 text-yellow-400 bg-yellow-900/20 p-3 rounded-lg border border-yellow-500/30">
-              <AlertCircle className="h-5 w-5" />
-              <span className="text-sm">Consider increasing trade frequency to meet weekly target</span>
-            </div>
-          )}
-        </div>
+      {/* Premium Progress Bars */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <PremiumProgressBar
+          label="Weekly"
+          current={dashboardStats.weeklyPremium}
+          min={dashboardStats.weeklyTarget.min}
+          max={dashboardStats.weeklyTarget.max}
+          icon={Target}
+        />
+        <PremiumProgressBar
+          label="Monthly"
+          current={dashboardStats.monthlyPremium}
+          min={dashboardStats.monthlyTarget.min}
+          max={dashboardStats.monthlyTarget.max}
+          icon={Calendar}
+        />
+        <PremiumProgressBar
+          label="Yearly"
+          current={dashboardStats.yearlyPremium}
+          min={dashboardStats.yearlyTarget.min}
+          max={dashboardStats.yearlyTarget.max}
+          icon={TrendingUp}
+        />
       </div>
 
       {/* Risk Alerts */}
