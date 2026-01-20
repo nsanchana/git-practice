@@ -253,7 +253,7 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
             <div>
               <p className="text-[11px] text-gray-400 uppercase font-bold tracking-widest">Allocated Capital</p>
               <p className={`text-2xl font-black ${getAllocationColor(dashboardStats.allocationPercentage)}`}>
-                ${dashboardStats.totalAllocated.toFixed(0)}
+                ${dashboardStats.totalAllocated.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <p className="text-[10px] text-gray-500">{dashboardStats.allocationPercentage.toFixed(1)}% of portfolio</p>
             </div>
