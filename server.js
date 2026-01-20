@@ -2,7 +2,7 @@ import express from 'express'
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import cors from 'cors'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import dotenv from 'dotenv'
 import {
   requireAuth,
@@ -31,19 +31,19 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 // User agent to avoid blocking
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 
-// Initialize Anthropic client (API key should be in environment variable)
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || ''
-})
+// Initialize Gemini client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
-// Helper function to generate AI insights using Claude
+// Helper function to generate AI insights using Gemini
 async function generateAIInsight(symbol, dataType, scrapedData = {}) {
   // If no API key, fall back to template insights
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return generateFallbackInsight(symbol, dataType, scrapedData)
   }
 
   try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+
     const prompts = {
       companyAnalysis: `Analyze this company data for ${symbol} and provide actionable insights for options trading:
 
@@ -108,16 +108,10 @@ Be concise and actionable.`
 
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: prompt
-      }]
-    })
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    return response.text()
 
-    return message.content[0].text
   } catch (error) {
     console.error('AI insight generation failed:', error.message)
     return generateFallbackInsight(symbol, dataType, scrapedData)
