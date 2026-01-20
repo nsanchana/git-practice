@@ -191,9 +191,9 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
 
         setLoadingProgress(Math.round(((i + 1) / sections.length) * 100))
 
-        // Small delay between requests
+        // Delay between requests to avoid rate limiting (3 seconds)
         if (i < sections.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 800))
+          await new Promise(resolve => setTimeout(resolve, 3000))
         }
       }
 
