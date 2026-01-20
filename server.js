@@ -548,8 +548,10 @@ async function scrapeTechnicalAnalysis(symbol) {
   let rating = 6
   let currentPrice = ''
   let targetPrice = ''
+  let supportLevels = []
+  let resistanceLevels = []
 
-  // Scrape current price and target price from StockAnalysis
+  // Scrape current price from StockAnalysis
   try {
     const priceUrl = `https://stockanalysis.com/stocks/${symbol.toLowerCase()}/`
     const response = await axios.get(priceUrl, {
@@ -561,6 +563,19 @@ async function scrapeTechnicalAnalysis(symbol) {
       $('.text-3xl, .text-4xl').first().text().trim()
     if (currentPrice) {
       metrics.push({ label: 'Current Price', value: currentPrice })
+    }
+
+    // Try to extract 52-week high/low as resistance/support
+    const fiftyTwoWeekHigh = $('[data-test="52-week-high"]').text().trim() ||
+      $('td:contains("52-Week High")').next().text().trim()
+    const fiftyTwoWeekLow = $('[data-test="52-week-low"]').text().trim() ||
+      $('td:contains("52-Week Low")').next().text().trim()
+
+    if (fiftyTwoWeekHigh) {
+      resistanceLevels.push(`${fiftyTwoWeekHigh} - 52-Week High`)
+    }
+    if (fiftyTwoWeekLow) {
+      supportLevels.push(`${fiftyTwoWeekLow} - 52-Week Low`)
     }
   } catch (error) {
     console.log('Technical scraping failed')
@@ -601,8 +616,45 @@ async function scrapeTechnicalAnalysis(symbol) {
     console.log('Target price scraping failed')
   }
 
-  // Get comprehensive AI analysis
-  const aiResponse = await generateAIInsight(symbol, 'technicalAnalysis', { currentPrice, targetPrice, metrics })
+  // Calculate price delta if both prices are available
+  let priceDelta = null
+  if (currentPrice && targetPrice) {
+    try {
+      const current = parseFloat(currentPrice.replace(/[$,]/g, ''))
+      const target = parseFloat(targetPrice.replace(/[$,]/g, ''))
+      if (!isNaN(current) && !isNaN(target)) {
+        const absoluteDelta = target - current
+        const percentageDelta = ((absoluteDelta / current) * 100).toFixed(2)
+        const direction = absoluteDelta >= 0 ? 'upside' : 'downside'
+
+        priceDelta = {
+          absolute: `$${Math.abs(absoluteDelta).toFixed(2)}`,
+          percentage: `${Math.abs(parseFloat(percentageDelta)).toFixed(2)}%`,
+          direction: direction,
+          raw: absoluteDelta
+        }
+
+        // Add delta to metrics
+        const deltaLabel = direction === 'upside' ? 'Upside to Target' : 'Downside to Target'
+        metrics.push({
+          label: deltaLabel,
+          value: `${priceDelta.absolute} (${priceDelta.percentage})`
+        })
+      }
+    } catch (e) {
+      console.log('Price delta calculation failed:', e.message)
+    }
+  }
+
+  // Get comprehensive AI analysis with enhanced context
+  const aiResponse = await generateAIInsight(symbol, 'technicalAnalysis', {
+    currentPrice,
+    targetPrice,
+    priceDelta,
+    supportLevels,
+    resistanceLevels,
+    metrics
+  })
 
   // Try to parse JSON response from AI
   let technicalData = null
@@ -618,23 +670,40 @@ async function scrapeTechnicalAnalysis(symbol) {
   if (technicalData) {
     rating = technicalData.rating || 6
 
-    // Add support levels to metrics
+    // Merge AI-generated levels with scraped levels
+    const allSupportLevels = [...supportLevels]
+    const allResistanceLevels = [...resistanceLevels]
+
     if (technicalData.supportLevels && technicalData.supportLevels.length > 0) {
-      technicalData.supportLevels.forEach((level, i) => {
-        metrics.push({ label: `Support Level ${i + 1}`, value: level })
-      })
+      allSupportLevels.push(...technicalData.supportLevels)
+    }
+    if (technicalData.resistanceLevels && technicalData.resistanceLevels.length > 0) {
+      allResistanceLevels.push(...technicalData.resistanceLevels)
     }
 
-    // Add resistance levels to metrics
-    if (technicalData.resistanceLevels && technicalData.resistanceLevels.length > 0) {
-      technicalData.resistanceLevels.forEach((level, i) => {
-        metrics.push({ label: `Resistance Level ${i + 1}`, value: level })
-      })
-    }
+    // Add support levels to metrics (limit to top 3)
+    allSupportLevels.slice(0, 3).forEach((level, i) => {
+      metrics.push({ label: `Support Level ${i + 1}`, value: level })
+    })
+
+    // Add resistance levels to metrics (limit to top 3)
+    allResistanceLevels.slice(0, 3).forEach((level, i) => {
+      metrics.push({ label: `Resistance Level ${i + 1}`, value: level })
+    })
 
     // Add signals based on analysis
     if (technicalData.optionsStrategy) {
       signals.push({ type: 'info', message: technicalData.optionsStrategy })
+    }
+
+    // Add signal based on price delta
+    if (priceDelta) {
+      const deltaPercent = parseFloat(priceDelta.percentage)
+      if (priceDelta.direction === 'upside' && deltaPercent > 15) {
+        signals.push({ type: 'positive', message: `Significant upside potential: ${priceDelta.percentage} to analyst target` })
+      } else if (priceDelta.direction === 'downside' && deltaPercent > 10) {
+        signals.push({ type: 'warning', message: `Trading above analyst target by ${priceDelta.percentage}` })
+      }
     }
 
     return {
@@ -644,6 +713,7 @@ async function scrapeTechnicalAnalysis(symbol) {
       signals: signals.length > 0 ? signals : [{ type: 'info', message: 'Technical analysis completed' }],
       currentPrice: currentPrice || null,
       targetPrice: targetPrice || null,
+      priceDelta: priceDelta,
       // Detailed technical data for UI
       detailedTechnical: {
         trend30to60Days: {
@@ -652,13 +722,15 @@ async function scrapeTechnicalAnalysis(symbol) {
         },
         supportResistance: {
           title: 'Support & Resistance Levels',
-          support: technicalData.supportLevels || [],
-          resistance: technicalData.resistanceLevels || []
+          support: allSupportLevels,
+          resistance: allResistanceLevels
         },
         targetPriceAnalysis: {
           title: 'Target Price Analysis',
           content: technicalData.targetPriceAnalysis || 'Analysis not available',
-          targetPrice: targetPrice || null
+          targetPrice: targetPrice || null,
+          currentPrice: currentPrice || null,
+          delta: priceDelta
         },
         optionsStrategy: {
           title: 'Options Strategy Recommendation',
