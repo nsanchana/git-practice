@@ -7,7 +7,7 @@ This guide will walk you through deploying your Unicron Options Trading AI appli
 Before deploying, ensure you have:
 - A [Vercel account](https://vercel.com/signup) (free tier works fine)
 - A [GitHub account](https://github.com/signup)
-- Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com/)
+- Your Gemini API key from [aistudio.google.com](https://aistudio.google.com/)
 - Git installed on your machine
 
 ## Quick Start - Deploy in 5 Minutes! 🚀
@@ -16,23 +16,23 @@ Before deploying, ensure you have:
 
 ### Step 1: Connect Vercel to GitHub (One-Time Setup)
 
-1. **Go to [vercel.com](https://vercel.com/) and sign in** with your GitHub account
-2. **Click "Add New..." → "Project"**
-3. **First time?** Vercel will ask to install the GitHub integration:
-   - Click "Install" or "Configure GitHub App"
-   - Select your GitHub account (`nsanchana`)
-   - Choose "All repositories" or select specific repos
-   - Click "Install & Authorize"
+1.  **Go to [vercel.com](https://vercel.com/) and sign in** with your GitHub account
+2.  **Click "Add New..." → "Project"**
+3.  **First time?** Vercel will ask to install the GitHub integration:
+    -   Click "Install" or "Configure GitHub App"
+    -   Select your GitHub account (`nsanchana`)
+    -   Choose "All repositories" or select specific repos
+    -   Click "Install & Authorize"
 
 ### Step 2: Import Your Project
 
-1. **Find your repository** in the list: `nsanchana/git-practice`
-2. **Click "Import"**
-3. **Configure the project:**
-   - **Root Directory:** Click "Edit" and select `options-trading-ai-enhanced`
-   - **Framework Preset:** Vite (auto-detected)
-   - **Build Command:** `npm run build` (auto-filled)
-   - **Output Directory:** `dist` (auto-filled)
+1.  **Find your repository** in the list: `nsanchana/git-practice`
+2.  **Click "Import"**
+3.  **Configure the project:**
+    -   **Root Directory:** Click "Edit" and select `options-trading-ai-enhanced`
+    -   **Framework Preset:** Vite (auto-detected)
+    -   **Build Command:** `npm run build` (auto-filled)
+    -   **Output Directory:** `dist` (auto-filled)
 
 ### Step 3: Add Environment Variables
 
@@ -40,7 +40,7 @@ Click "Environment Variables" and add these **4 variables**:
 
 | Name | Value | How to Get It |
 |------|-------|---------------|
-| `ANTHROPIC_API_KEY` | `sk-ant-api03-2wRwu...` | Your existing API key |
+| `GEMINI_API_KEY` | `AIzaSy...` | Your Google Gemini API key |
 | `SESSION_SECRET` | Generate below ⬇️ | Run command below |
 | `NODE_ENV` | `production` | Type manually |
 | `FRONTEND_URL` | Leave blank | Will update after deploy |
@@ -53,24 +53,24 @@ Copy the output (it looks like: `c8bc0950a090d2bbb38b48b5b819aba0...`)
 
 ### Step 4: Deploy!
 
-1. **Click "Deploy"**
-2. ☕ Wait 2-3 minutes while Vercel builds your app
-3. 🎉 **Done!** You'll see "Congratulations" when it's ready
+1.  **Click "Deploy"**
+2.  ☕ Wait 2-3 minutes while Vercel builds your app
+3.  🎉 **Done!** You'll see "Congratulations" when it's ready
 
 ### Step 5: Update FRONTEND_URL
 
-1. **Copy your app URL** (looks like `https://git-practice-abc123.vercel.app`)
-2. Go to **Settings → Environment Variables**
-3. **Edit `FRONTEND_URL`** and paste your app URL
-4. Click **Save**
-5. Go to **Deployments → latest deployment → "..." menu → Redeploy**
+1.  **Copy your app URL** (looks like `https://git-practice-abc123.vercel.app`)
+2.  Go to **Settings → Environment Variables**
+3.  **Edit `FRONTEND_URL`** and paste your app URL
+4.  Click **Save**
+5.  Go to **Deployments → latest deployment → "..." menu → Redeploy**
 
 ### Step 6: Create Your Account
 
-1. **Visit your app URL**
-2. Click **"Register"**
-3. Create your username and password
-4. **Start trading!** 🎯
+1.  **Visit your app URL**
+2.  Click **"Register"**
+3.  Create your username and password
+4.  **Start trading!** 🎯
 
 ---
 
@@ -104,7 +104,7 @@ vercel
 
 Then add environment variables via CLI:
 ```bash
-vercel env add ANTHROPIC_API_KEY
+vercel env add GEMINI_API_KEY
 vercel env add SESSION_SECRET
 vercel env add NODE_ENV
 vercel env add FRONTEND_URL
@@ -119,7 +119,7 @@ vercel --prod
 
 | Variable | Purpose | Example Value |
 |----------|---------|---------------|
-| `ANTHROPIC_API_KEY` | Your Claude API key for AI-powered company analysis | `sk-ant-api03-...` |
+| `GEMINI_API_KEY` | Your Gemini API key for AI-powered company analysis | `AIzaSy...` |
 | `SESSION_SECRET` | Encrypts user sessions (generate with crypto) | `c8bc0950a090d2bbb...` |
 | `NODE_ENV` | Tells the app it's in production mode | `production` |
 | `FRONTEND_URL` | Your deployed app URL for CORS (add after first deploy) | `https://your-app.vercel.app` |
@@ -213,8 +213,8 @@ To migrate from SQLite to PostgreSQL, you'll need to:
 
 **Solution:**
 1. Go to Vercel → Settings → Environment Variables
-2. Verify `ANTHROPIC_API_KEY` is set correctly
-3. Check it starts with `sk-ant-`
+2. Verify `GEMINI_API_KEY` is set correctly
+3. Check it is a valid Google API key
 4. Redeploy the application
 
 ### "Unauthorized" on API Calls
@@ -313,8 +313,8 @@ vercel logs
 
 ### Monitor API Usage
 
-**Anthropic API Usage:**
-- Visit [console.anthropic.com](https://console.anthropic.com/)
+**Gemini API Usage:**
+- Visit [aistudio.google.com](https://aistudio.google.com/)
 - Check "Usage" section for token consumption
 - Set up billing alerts if needed
 
@@ -333,12 +333,11 @@ Enable Web Analytics in Vercel dashboard for:
   - Unlimited deployments
   - Sufficient for personal use
 
-### Anthropic API
-- **Claude 3.5 Sonnet:**
-  - Input: ~$3 per 1M tokens
-  - Output: ~$15 per 1M tokens
-  - Typical usage: ~$0.50/day for 5-10 researches
-  - ~$15/month for regular use
+### Gemini API
+- **Gemini 1.5 Pro:**
+  - Free tier usually sufficient for personal use
+  - Paid tiers based on usage
+  - Typical usage: ~$0.10-$0.50/day for 5-10 researches
 
 ### Database (if upgraded)
 - **SQLite (current):** Free (but ephemeral on Vercel)
@@ -349,8 +348,8 @@ Enable Web Analytics in Vercel dashboard for:
 
 - **Vercel Documentation:** [vercel.com/docs](https://vercel.com/docs)
 - **Vercel Support:** [vercel.com/support](https://vercel.com/support)
-- **Anthropic Documentation:** [docs.anthropic.com](https://docs.anthropic.com)
-- **Anthropic Status:** [status.anthropic.com](https://status.anthropic.com)
+- **Google AI Studio Documentation:** [ai.google.dev](https://ai.google.dev)
+- **Google Cloud Status:** [status.cloud.google.com](https://status.cloud.google.com)
 
 ## Next Steps
 

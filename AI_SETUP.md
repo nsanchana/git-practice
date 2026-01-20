@@ -1,16 +1,15 @@
 # AI-Powered Company Research Setup
 
-Unicron now uses Claude AI to provide intelligent, context-aware analysis of company research data instead of generic template text.
+Unicron now uses Google Gemini AI to provide intelligent, context-aware analysis of company research data instead of generic template text.
 
 ## Setup Instructions
 
-### 1. Get an Anthropic API Key
+### 1. Get a Google Gemini API Key
 
-1. Visit [https://console.anthropic.com/](https://console.anthropic.com/)
-2. Sign up or log in to your account
-3. Navigate to API Keys section
-4. Create a new API key
-5. Copy the API key (it starts with `sk-ant-`)
+1. Visit [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+2. Sign up or log in to your Google account
+3. Click "Create API key"
+4. Copy the API key
 
 ### 2. Configure Environment Variables
 
@@ -21,7 +20,7 @@ Unicron now uses Claude AI to provide intelligent, context-aware analysis of com
 
 2. Edit the `.env` file and add your API key:
    ```
-   ANTHROPIC_API_KEY=sk-ant-your-actual-api-key-here
+   GEMINI_API_KEY=your-actual-api-key-here
    ```
 
 ### 3. Restart the Server
@@ -37,7 +36,7 @@ npm start
 When you run Company Research, the system:
 
 1. **Scrapes data** from financial websites (stockanalysis.com, Yahoo Finance, etc.)
-2. **Analyzes the data** using Claude AI with specialized prompts for each section:
+2. **Analyzes the data** using Gemini AI with specialized prompts for each section:
    - **Company Analysis**: Evaluates competitive position, business model strength, and suitability for options trading
    - **Financial Health**: Assesses financial stability, revenue trends, and recommendations for options strategies
    - **Technical Analysis**: Reviews price momentum, trends, and suggests optimal strike prices
@@ -52,17 +51,17 @@ If you don't configure an API key, the system will fall back to generic template
 
 ## Cost Considerations
 
-- Claude 3.5 Sonnet pricing: ~$3 per million input tokens, ~$15 per million output tokens
-- Each research analysis uses approximately 300-500 tokens per section
-- For typical usage (5-10 company researches per day), cost is minimal (< $0.50/day)
-- You can monitor your usage at [https://console.anthropic.com/](https://console.anthropic.com/)
+- Gemini 1.5 Pro: Free tier available (with rate limits)
+- Paid tier pricing: Refer to Google AI Studio pricing page
+- Each research analysis uses tokens based on data size
+- For typical usage, the free tier is usually sufficient
 
 ## Privacy & Security
 
 - Your API key is stored locally in `.env` file (never committed to git)
-- Only company research data (publicly available information) is sent to Claude
+- Only company research data (publicly available information) is sent to Gemini
 - Your personal trading data, portfolio size, and trade positions are **never** sent to external APIs
-- The Anthropic API does not train models on your data
+- The Gemini API's data usage policies apply based on your tier (pay-as-you-go data is not used for training)
 
 ## Benefits of AI Analysis
 
@@ -84,10 +83,10 @@ collection with high probability of expiring worthless."
 
 ## Troubleshooting
 
-**Error: "Invalid API key"**
-- Check that your API key in `.env` starts with `sk-ant-`
+**Error: "API key not configured"**
+- Check that your API key in `.env` or `.env.local` is correctly labeled as `GEMINI_API_KEY`
 - Ensure there are no extra spaces or quotes around the key
-- Verify the key is active in your Anthropic console
+- Verify the key is active in your Google AI Studio console
 
 **Generic analysis still showing**
 - Restart the server after adding the API key
@@ -96,12 +95,12 @@ collection with high probability of expiring worthless."
 
 **Analysis taking too long**
 - AI analysis adds 1-2 seconds per section
-- This is normal - Claude is analyzing your data in real-time
+- This is normal - Gemini is analyzing your data in real-time
 - Total research time: ~10-15 seconds (vs ~5 seconds without AI)
 
 ## Support
 
 For issues specific to the AI integration, check:
 - Server console for error messages
-- Anthropic status page: [https://status.anthropic.com/](https://status.anthropic.com/)
-- Your API key usage/limits in Anthropic console
+- Google Cloud Status Dashboard
+- Your API key usage/limits in Google AI Studio
