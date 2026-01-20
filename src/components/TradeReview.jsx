@@ -89,12 +89,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   const availableSymbols = [...new Set(researchData.map(item => item.symbol))]
 
   // Fetch current market price from stockanalysis.com
-  const fetchCurrentPrice = async (symbol) => {
-    if (!symbol) return
-
-    setFetchingPrice(true)
-    setPriceError('')
-
+  const getPrice = async (symbol) => {
     try {
       const response = await fetch(`/api/scrape/stock-price`, {
         method: 'POST',
@@ -107,18 +102,113 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
       const data = await response.json()
       if (data.price) {
-        setCurrentPrice(data.price.toString())
-        setPriceError('')
-      } else {
-        throw new Error('Price not found')
+        return data.price.toString()
       }
+      return null
     } catch (error) {
       console.error('Error fetching price:', error)
-      setPriceError('Unable to fetch price. Please enter manually.')
-    } finally {
-      setFetchingPrice(false)
+      return null
     }
   }
+
+  const fetchCurrentPrice = async (symbol) => {
+    if (!symbol) return
+
+    setFetchingPrice(true)
+    setPriceError('')
+
+    const price = await getPrice(symbol)
+
+    if (price) {
+      setCurrentPrice(price)
+      setPriceError('')
+    } else {
+      setPriceError('Unable to fetch price. Please enter manually.')
+    }
+    setFetchingPrice(false)
+  }
+
+  // Refresh prices for all active trades
+  const refreshTradePrices = async () => {
+    setLoading(true)
+    const activeTrades = tradeData.filter(t => !t.closed)
+    const uniqueSymbols = [...new Set(activeTrades.map(t => t.symbol))]
+
+    // Create a map of symbol -> new price
+    const priceMap = {}
+
+    for (const symbol of uniqueSymbols) {
+      const price = await getPrice(symbol)
+      if (price) {
+        priceMap[symbol] = parseFloat(price)
+      }
+    }
+
+    // Update trade data
+    const updatedTradeData = tradeData.map(trade => {
+      // Only update if we have a new price and the trade is active or recently closed
+      if (priceMap[trade.symbol]) {
+        return {
+          ...trade,
+          currentMarketPrice: priceMap[trade.symbol],
+          lastPriceUpdate: new Date().toISOString()
+        }
+      }
+      return trade
+    })
+
+    setTradeData(updatedTradeData)
+    saveToLocalStorage('tradeData', updatedTradeData)
+    setLoading(false)
+    alert('Stock prices updated successfully!')
+  }
+
+  // Auto-refresh prices if data is stale (older than today)
+  useEffect(() => {
+    const checkAndRefreshPrices = async () => {
+      if (tradeData.length === 0) return
+
+      const activeTrades = tradeData.filter(t => !t.closed)
+      if (activeTrades.length === 0) return
+
+      const today = new Date().toISOString().split('T')[0]
+      const needsUpdate = activeTrades.some(t => {
+        if (!t.lastPriceUpdate) return true
+        return t.lastPriceUpdate.split('T')[0] !== today
+      })
+
+      if (needsUpdate) {
+        // Silent update
+        const uniqueSymbols = [...new Set(activeTrades.map(t => t.symbol))]
+        const priceMap = {}
+
+        for (const symbol of uniqueSymbols) {
+          const price = await getPrice(symbol)
+          if (price) {
+            priceMap[symbol] = parseFloat(price)
+          }
+        }
+
+        const updatedTradeData = tradeData.map(trade => {
+          if (priceMap[trade.symbol]) {
+            return {
+              ...trade,
+              currentMarketPrice: priceMap[trade.symbol],
+              lastPriceUpdate: new Date().toISOString()
+            }
+          }
+          return trade
+        })
+
+        if (JSON.stringify(updatedTradeData) !== JSON.stringify(tradeData)) {
+          setTradeData(updatedTradeData)
+          saveToLocalStorage('tradeData', updatedTradeData)
+        }
+      }
+    }
+
+    checkAndRefreshPrices()
+  }, []) // Run once on mount
 
   // Fetch price when symbol changes
   const handleSymbolChange = (symbol) => {
@@ -927,107 +1017,126 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       {/* Trade History */}
       {tradeData.length > 0 && (
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Trade Analysis History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Trade Analysis History</h3>
+            <button
+              onClick={refreshTradePrices}
+              disabled={loading}
+              className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors disabled:opacity-50 text-sm font-medium"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <span>Update Prices</span>
+            </button>
+          </div>
           <div className="space-y-4">
-            {tradeData.slice(0, 10).map((trade, index) => (
-              <div key={index} className={`p-4 rounded-lg ${trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
-                trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
-                  'bg-gray-700'
-                }`}>
-                {/* Top Row: Symbol, Type, and Status */}
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="font-semibold text-lg">
-                      {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
-                    </h4>
-                    <div className="flex items-center space-x-2 mt-1">
-                      {trade.status === 'executed' && (
-                        <span className="text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
-                          EXECUTED
-                        </span>
-                      )}
-                      {trade.status === 'planned' && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
-                          PLANNED
-                        </span>
-                      )}
-                      {!trade.status && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
-                          RESEARCH
-                        </span>
-                      )}
-                      <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
-                        {trade.recommendation.action}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {trade.status === 'planned' && (
-                      <>
-                        <button
-                          onClick={() => handleEditTrade(trade)}
-                          className="p-2 hover:bg-blue-900/50 rounded-lg transition-colors"
-                          title="Edit planned trade"
-                        >
-                          <Edit className="h-4 w-4 text-blue-400" />
-                        </button>
-                        <button
-                          onClick={() => handleConvertToExecuted(trade)}
-                          className="p-2 hover:bg-green-900/50 rounded-lg transition-colors"
-                          title="Convert to executed trade"
-                        >
-                          <CheckCircle className="h-4 w-4 text-green-400" />
-                        </button>
-                      </>
-                    )}
-                    {(trade.status === 'planned' || trade.status === 'executed') && (
-                      <button
-                        onClick={() => handleDeleteTrade(trade.id)}
-                        className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
-                        title="Delete trade"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-400" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+            {tradeData.slice(0, 10).map((trade, index) => {
+              const displayPrice = trade.currentMarketPrice || trade.stockPrice
+              const priceDiff = displayPrice - trade.strikePrice
 
-                {/* Trade Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Stock Price</div>
-                    <div className="text-lg font-bold text-white">${trade.stockPrice?.toFixed(2) || 'N/A'}</div>
-                  </div>
-                  <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Strike Price</div>
-                    <div className="text-lg font-bold text-white">${trade.strikePrice?.toFixed(2)}</div>
-                  </div>
-                  <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Variance</div>
-                    <div className={`text-lg font-bold ${(trade.stockPrice - trade.strikePrice) > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      ${(trade.stockPrice - trade.strikePrice).toFixed(2)}
-                      <span className="text-xs ml-1 opacity-70">
-                        ({(((trade.stockPrice - trade.strikePrice) / trade.strikePrice) * 100).toFixed(1)}%)
-                      </span>
+              return (
+                <div key={index} className={`p-4 rounded-lg ${trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
+                  trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
+                    'bg-gray-700'
+                  }`}>
+                  {/* Top Row: Symbol, Type, and Status */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="font-semibold text-lg">
+                        {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
+                      </h4>
+                      <div className="flex items-center space-x-2 mt-1">
+                        {trade.status === 'executed' && (
+                          <span className="text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
+                            EXECUTED
+                          </span>
+                        )}
+                        {trade.status === 'planned' && (
+                          <span className="text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
+                            PLANNED
+                          </span>
+                        )}
+                        {!trade.status && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
+                            RESEARCH
+                          </span>
+                        )}
+                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
+                          {trade.recommendation.action}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {trade.status === 'planned' && (
+                        <>
+                          <button
+                            onClick={() => handleEditTrade(trade)}
+                            className="p-2 hover:bg-blue-900/50 rounded-lg transition-colors"
+                            title="Edit planned trade"
+                          >
+                            <Edit className="h-4 w-4 text-blue-400" />
+                          </button>
+                          <button
+                            onClick={() => handleConvertToExecuted(trade)}
+                            className="p-2 hover:bg-green-900/50 rounded-lg transition-colors"
+                            title="Convert to executed trade"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-400" />
+                          </button>
+                        </>
+                      )}
+                      {(trade.status === 'planned' || trade.status === 'executed') && (
+                        <button
+                          onClick={() => handleDeleteTrade(trade.id)}
+                          className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
+                          title="Delete trade"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-400" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Premium</div>
-                    <div className="text-lg font-bold text-emerald-400">${trade.premium?.toFixed(2)}</div>
-                  </div>
-                  <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Days Left</div>
-                    <div className="text-lg font-bold text-blue-400">
-                      {Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))}d
+
+                  {/* Trade Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="glass-item">
+                      <div className="text-xs text-gray-400 mb-1">Stock Price</div>
+                      <div className="text-lg font-bold text-white">
+                        ${displayPrice?.toFixed(2) || 'N/A'}
+                        {trade.currentMarketPrice && (
+                          <span className="text-[10px] text-blue-400 ml-1 font-normal">(Live)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="glass-item">
+                      <div className="text-xs text-gray-400 mb-1">Strike Price</div>
+                      <div className="text-lg font-bold text-white">${trade.strikePrice?.toFixed(2)}</div>
+                    </div>
+                    <div className="glass-item">
+                      <div className="text-xs text-gray-400 mb-1">Variance</div>
+                      <div className={`text-lg font-bold ${priceDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ${priceDiff.toFixed(2)}
+                        <span className="text-xs ml-1 opacity-70">
+                          ({((priceDiff / trade.strikePrice) * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="glass-item">
+                      <div className="text-xs text-gray-400 mb-1">Premium</div>
+                      <div className="text-lg font-bold text-emerald-400">${trade.premium?.toFixed(2)}</div>
+                    </div>
+                    <div className="glass-item">
+                      <div className="text-xs text-gray-400 mb-1">Days Left</div>
+                      <div className="text-lg font-bold text-blue-400">
+                        {Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))}d
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
-      )
-      }
+      )}
     </div >
   )
 }
