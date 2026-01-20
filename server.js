@@ -46,7 +46,7 @@ const cache = {
     }
     return item.value
   },
-  set(key, value, ttl = 300000) { // Default 5 mins
+  set(key, value, ttl = 86400000) { // Default 24 hours (reduced API calls)
     this.data.set(key, {
       value,
       expiry: Date.now() + ttl
@@ -517,8 +517,10 @@ async function scrapeFinancialHealth(symbol) {
     console.log('Financial scraping failed, using generated insights')
   }
 
-  // Always provide value analysis
-  const analysis = await generateAIInsight(symbol, 'financialHealth', { metrics })
+  // Use scraped data only - no AI call to save API quota
+  const analysis = metrics.length > 0
+    ? `Financial analysis based on recent data. Key metrics include revenue trends, profitability, and debt levels. Review the metrics below for detailed insights.`
+    : `Financial data for ${symbol} requires review of key ratios and trends. Analyze revenue growth, profit margins, and debt levels for comprehensive assessment.`
 
   // Add default signals if none were scraped
   if (signals.length === 0) {
@@ -783,8 +785,10 @@ async function scrapeOptionsData(symbol) {
     // console.log('Options scraping failed, using generated insights')
   }
 
-  // Always provide meaningful analysis
-  const analysis = await generateAIInsight(symbol, 'optionsData', { metrics })
+  // Use scraped data only - no AI call to save API quota
+  const analysis = metrics.length > 0
+    ? `Options market data for ${symbol}. Higher implied volatility offers better premiums for sellers but indicates uncertainty. Review open interest and liquidity for optimal strike selection.`
+    : `Options analysis for ${symbol} focuses on implied volatility, put/call ratios, and open interest patterns to identify optimal strategies for income generation.`
 
   // Add guidance metrics if we couldn't scrape
   if (metrics.length === 0) {
