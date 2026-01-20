@@ -41,6 +41,6 @@
     "vercel": "^50.4.5"
   },
   "overrides": {
-    "esbuild": "^0.21.5"
+    "esbuild": "^0.27.2"
   }
 }
