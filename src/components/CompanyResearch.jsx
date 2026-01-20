@@ -24,6 +24,8 @@ const formatTime = (dateString) => {
 function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
   const [symbol, setSymbol] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [currentLoadingSection, setCurrentLoadingSection] = useState('')
   const [companyData, setCompanyData] = useState(null)
   const [error, setError] = useState('')
   const [expandedSections, setExpandedSections] = useState({
@@ -114,11 +116,11 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
     if (!symbol.trim()) return
 
     setLoading(true)
+    setLoadingProgress(0)
     setError('')
     setCompanyData(null)
 
     try {
-      // Scrape data in sections to avoid large requests
       const sections = [
         'companyAnalysis',
         'financialHealth',
@@ -127,8 +129,20 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
       ]
 
       const results = {}
+      const lastRefresh = new Date()
 
-      for (const section of sections) {
+      // Initialize with skeleton data to allow incremental updates
+      setCompanyData({
+        symbol: symbol.toUpperCase(),
+        date: lastRefresh.toISOString(),
+        lastRefresh: lastRefresh.toISOString(),
+        overallRating: 0,
+        loading: true
+      })
+
+      for (let i = 0; i < sections.length; i++) {
+        const section = sections[i]
+        setCurrentLoadingSection(section.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))
         console.log(`Scraping ${section} for ${symbol}...`)
 
         let sectionData = null
@@ -143,50 +157,54 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
             attempts++
             console.warn(`Attempt ${attempts} failed for ${section}:`, err.message)
             if (attempts < maxAttempts) {
-              // Wait before retrying
-              await new Promise(resolve => setTimeout(resolve, 2000 * attempts)) // Exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempts))
             }
           }
         }
 
         if (!sectionData) {
-          throw new Error(`Failed to scrape ${section} after ${maxAttempts} attempts`)
+          // Continue to next section instead of failing everything
+          console.error(`Failed to scrape ${section} after ${maxAttempts} attempts`)
+          continue
         }
 
         results[section] = sectionData
 
-        // Small delay between requests to be respectful
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Update companyData incrementally
+        setCompanyData(prev => {
+          const updated = { ...prev, [section]: sectionData }
+
+          // Recalculate overall rating if possible
+          const sectionRatings = [
+            updated.companyAnalysis?.rating || 0,
+            updated.financialHealth?.rating || 0,
+            updated.technicalAnalysis?.rating || 0,
+            updated.recentDevelopments?.rating || 0
+          ].filter(rating => rating > 0)
+
+          if (sectionRatings.length > 0) {
+            updated.overallRating = Math.round((sectionRatings.reduce((sum, rating) => sum + rating, 0) / sectionRatings.length) * 10)
+          }
+
+          return updated
+        })
+
+        setLoadingProgress(Math.round(((i + 1) / sections.length) * 100))
+
+        // Small delay between requests
+        if (i < sections.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800))
+        }
       }
 
-      // Calculate overall rating (equal weighting)
-      const sectionRatings = [
-        results.companyAnalysis?.rating || 0,
-        results.financialHealth?.rating || 0,
-        results.technicalAnalysis?.rating || 0,
-        results.recentDevelopments?.rating || 0
-      ].filter(rating => rating > 0)
-
-      const overallRating = sectionRatings.length > 0
-        ? Math.round((sectionRatings.reduce((sum, rating) => sum + rating, 0) / sectionRatings.length) * 10)
-        : 0
-
-      const researchEntry = {
-        symbol: symbol.toUpperCase(),
-        date: new Date().toISOString(),
-        ...results,
-        overallRating,
-        lastRefresh: lastRefresh.toISOString(),
-        saved: false // Mark as not saved initially
-      }
-
-      setCompanyData(researchEntry)
-      // Don't add to researchData yet - only add when saved
+      setCompanyData(prev => ({ ...prev, loading: false }))
     } catch (err) {
       setError(`Failed to analyze company: ${err.message}. Please check the symbol and try again.`)
       console.error('Research error:', err)
     } finally {
       setLoading(false)
+      setLoadingProgress(100)
+      setCurrentLoadingSection('')
     }
   }
 
@@ -700,30 +718,60 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
           </button>
         </form>
 
+        {/* Progress Bar when loading */}
         {loading && (
-          <div className="mt-4 p-4 bg-blue-900 border border-blue-700 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Loader className="h-5 w-5 animate-spin text-blue-400" />
-              <div>
-                <p className="font-medium text-blue-400">Analyzing Company Data</p>
-                <p className="text-sm text-blue-300">
-                  Scraping multiple data sources... This may take a moment.
-                </p>
+          <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="glass-card p-6 border-primary-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary-500/20 rounded-lg">
+                    <Loader2 className="h-5 w-5 text-primary-400 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Analyzing {symbol.toUpperCase()}</h3>
+                    <p className="text-sm text-gray-400">Current step: <span className="text-primary-400 font-medium">{currentLoadingSection || 'Initializing...'}</span></p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold text-primary-400">{loadingProgress}%</span>
+              </div>
+
+              <div className="w-full h-3 bg-gray-800/50 rounded-full overflow-hidden border border-white/5 p-0.5">
+                <div
+                  className="h-full bg-gradient-to-r from-primary-600 via-primary-400 to-accent-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                  style={{ width: `${loadingProgress}%` }}
+                ></div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                {['Company', 'Financial', 'Technical', 'Events'].map((step, i) => {
+                  const isCompleted = loadingProgress > (i * 25);
+                  const isActive = loadingProgress > (i * 25) && loadingProgress <= ((i + 1) * 25);
+                  return (
+                    <div key={step} className="text-center">
+                      <div className={`text-[10px] uppercase tracking-wider font-bold mb-1 ${isCompleted ? 'text-primary-400' : 'text-gray-600'}`}>
+                        {step}
+                      </div>
+                      <div className={`h-1.5 rounded-full transition-colors duration-500 ${isCompleted ? 'bg-primary-500/50' : 'bg-gray-800'}`}>
+                        {isActive && <div className="h-full bg-primary-400 rounded-full animate-pulse" style={{ width: '100%' }}></div>}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="mt-4 p-4 bg-red-900 border border-red-700 rounded-lg text-red-300">
-            {error}
+          <div className="mb-8 p-4 bg-red-900/30 border border-red-500/50 rounded-xl text-red-200 flex items-start space-x-3 animate-in fade-in slide-in-from-top-4">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <p>{error}</p>
           </div>
         )}
       </div>
 
-      {/* Analysis Results */}
       {companyData && (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Overall Rating Header */}
           <div className="glass-card bg-gradient-to-r from-blue-600/10 to-transparent border-blue-500/20">
             <div className="flex items-center justify-between">

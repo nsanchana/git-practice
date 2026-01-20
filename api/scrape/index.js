@@ -3,10 +3,57 @@ import * as cheerio from 'cheerio'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+
+// Simple in-memory cache
+const cache = {
+  data: new Map(),
+  get(key) {
+    const item = this.data.get(key)
+    if (!item) return null
+    if (Date.now() > item.expiry) {
+      this.data.delete(key)
+      return null
+    }
+    return item.value
+  },
+  set(key, value, ttl = 300000) { // Default 5 mins
+    this.data.set(key, {
+      value,
+      expiry: Date.now() + ttl
+    })
+  }
+}
+
+// Helper to extract JSON from markdown or raw text
+function extractJson(text) {
+  try {
+    // Try direct parse first
+    return JSON.parse(text)
+  } catch (e) {
+    // Try to find JSON block
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0])
+      } catch (parseError) {
+        console.error('Failed to parse matched JSON block:', parseError.message)
+      }
+    }
+    throw new Error('No valid JSON found in response')
+  }
+}
 
 // Helper function to generate comprehensive company analysis using AI
 async function generateComprehensiveCompanyAnalysis(symbol, scrapedData = {}) {
   const apiKey = process.env.GEMINI_API_KEY
+  const cacheKey = `companyAnalysis_${symbol}`
+
+  const cachedResult = cache.get(cacheKey)
+  if (cachedResult) {
+    console.log(`[Cache] Returning cached company analysis for ${symbol}`)
+    return cachedResult
+  }
 
   console.log(`[CompanyAnalysis] Starting analysis for ${symbol}`)
 
@@ -16,14 +63,11 @@ async function generateComprehensiveCompanyAnalysis(symbol, scrapedData = {}) {
   }
 
   try {
-    console.log('[CompanyAnalysis] Creating Gemini client...')
-    const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-pro',
       generationConfig: { responseMimeType: "application/json" }
     })
 
-    console.log('[CompanyAnalysis] Building prompt...')
     const prompt = `You are a senior equity research analyst. Provide a comprehensive analysis of ${symbol} (${scrapedData.companyName || symbol}).
 
 Available Data:
@@ -72,13 +116,11 @@ Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide m
     console.log('[CompanyAnalysis] Calling Gemini API...')
 
     const result = await model.generateContent(prompt)
-    const response = await result.response
-    const responseText = response.text()
+    const responseText = result.response.text()
 
     console.log('[CompanyAnalysis] Received response from Gemini')
 
-    // Gemini with responseMimeType should return valid JSON directly
-    let analysis = JSON.parse(responseText)
+    let analysis = extractJson(responseText)
 
     // Calculate overallRating as average of category ratings if not provided or valid
     const categories = ['marketPosition', 'businessModel', 'industryTrends', 'customerBase', 'growthStrategy', 'economicMoat']
@@ -87,10 +129,11 @@ Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide m
       analysis.overallRating = Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
     }
 
+    cache.set(cacheKey, analysis)
     return analysis
 
   } catch (error) {
-    console.error('[CompanyAnalysis] AI company analysis failed:', error.message)
+    console.error('[CompanyAnalysis] AI failed:', error.message)
     console.error('[CompanyAnalysis] Error stack:', error.stack)
     return generateFallbackCompanyAnalysis(symbol, scrapedData)
   }
@@ -215,8 +258,9 @@ Use your knowledge of ${symbol}'s recent news, earnings schedule, product announ
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
     const result = await model.generateContent(prompt)
-    const response = await result.response
-    return response.text()
+    const responseText = result.response.text()
+    cache.set(cacheKey, responseText)
+    return responseText
 
   } catch (error) {
     console.error('AI insight generation failed:', error.message)
