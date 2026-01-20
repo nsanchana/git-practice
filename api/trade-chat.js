@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export default async function handler(req, res) {
   // Handle CORS
@@ -15,9 +15,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
 
-  if (!apiKey) {
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
     return res.status(500).json({ error: 'API key not configured' })
   }
 
@@ -28,9 +28,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required' })
     }
 
-    const anthropic = new Anthropic({
-      apiKey: apiKey
-    })
+    const genAI = new GoogleGenerativeAI(apiKey)
 
     // Build context from trade analysis data
     let systemPrompt = `You are a helpful financial analyst assistant specializing in options trading strategies. You provide clear, actionable insights based on trade analysis data.`
@@ -73,33 +71,36 @@ ${tradeData.earningsAndEvents.whatToWatch ? `Key Factors to Watch: ${tradeData.e
 Use this information to answer questions about this trade. Be specific, reference the analysis data when relevant, and provide actionable insights. Consider risk management, optimal entry/exit points, adjustment strategies, and alternative trades when appropriate. Keep responses concise but informative.`
     }
 
-    // Build messages array with chat history
-    const messages = []
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      systemInstruction: systemPrompt
+    })
 
+    // Transform chat history to Gemini format (user/model)
+    const history = []
     if (chatHistory && chatHistory.length > 0) {
       chatHistory.forEach(msg => {
-        messages.push({
-          role: msg.role,
-          content: msg.content
-        })
+        const role = msg.role === 'assistant' ? 'model' : msg.role
+        if (role !== 'system') {
+          history.push({
+            role: role,
+            parts: [{ text: msg.content }]
+          })
+        }
       })
     }
 
-    messages.push({
-      role: 'user',
-      content: message
+    const chat = model.startChat({
+      history: history
     })
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: messages
-    })
+    const result = await chat.sendMessage(message)
+    const response = await result.response
+    const text = response.text()
 
     return res.status(200).json({
-      response: response.content[0].text,
-      model: response.model
+      response: text,
+      model: 'gemini-1.5-pro'
     })
   } catch (error) {
     console.error('Trade chat error:', error.message)

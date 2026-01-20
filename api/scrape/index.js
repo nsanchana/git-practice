@@ -1,26 +1,26 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 
 // Helper function to generate comprehensive company analysis using AI
 async function generateComprehensiveCompanyAnalysis(symbol, scrapedData = {}) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
 
   console.log(`[CompanyAnalysis] Starting analysis for ${symbol}`)
-  console.log(`[CompanyAnalysis] API Key present: ${!!apiKey}`)
-  console.log(`[CompanyAnalysis] API Key length: ${apiKey ? apiKey.length : 0}`)
 
-  if (!apiKey || apiKey.trim() === '') {
-    console.log('[CompanyAnalysis] No API key found, using fallback')
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'your_gemini_api_key_here') {
+    console.log('[CompanyAnalysis] No Gemini API key found, using fallback')
     return generateFallbackCompanyAnalysis(symbol, scrapedData)
   }
 
   try {
-    console.log('[CompanyAnalysis] Creating Anthropic client...')
-    const anthropic = new Anthropic({
-      apiKey: apiKey
+    console.log('[CompanyAnalysis] Creating Gemini client...')
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: { responseMimeType: "application/json" }
     })
 
     console.log('[CompanyAnalysis] Building prompt...')
@@ -41,58 +41,54 @@ Provide a detailed analysis in the following JSON format. For each category, pro
 {
   "marketPosition": {
     "analysis": "Detailed analysis of the company's position in the market, competitive advantages, industry dynamics, and market share...",
-    "rating": "A number from 0-10 based on market position strength"
+    "rating": 7
   },
   "businessModel": {
     "analysis": "Detailed evaluation of how the company generates revenue, key revenue streams, business model sustainability, and recurring revenue potential...",
-    "rating": "A number from 0-10 based on business model quality"
+    "rating": 7
   },
   "industryTrends": {
     "analysis": "Analysis of industry trends, external factors impacting performance, regulatory environment, technological disruption, and macroeconomic influences...",
-    "rating": "A number from 0-10 based on industry outlook"
+    "rating": 7
   },
   "customerBase": {
     "analysis": "Assessment of customer base composition, concentration risks, customer retention, geographic diversification, and dependency on key customers...",
-    "rating": "A number from 0-10 based on customer base strength"
+    "rating": 7
   },
   "growthStrategy": {
     "analysis": "Investigation of future growth plans, product development pipeline, expansion strategies, M&A activity, and long-term market success potential...",
-    "rating": "A number from 0-10 based on growth prospects"
+    "rating": 7
   },
   "economicMoat": {
     "analysis": "Economic moat analysis covering brand loyalty, barriers to entry, switching costs, network effects, economies of scale, patents/IP, and cost advantages...",
-    "rating": "A number from 0-10 based on competitive advantages"
+    "rating": 7
   },
-  "overallRating": "A number from 0-10 representing the overall investment thesis based on all categories",
+  "overallRating": 7,
   "summary": "2-3 sentence executive summary of the overall investment thesis..."
 }
 
 Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide meaningful insights. Return ONLY valid JSON.`
 
-    console.log('[CompanyAnalysis] Calling Anthropic API with model claude-sonnet-4-20250514...')
+    console.log('[CompanyAnalysis] Calling Gemini API...')
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2500,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const responseText = response.text()
 
-    console.log('[CompanyAnalysis] Received response from Anthropic')
-    console.log('[CompanyAnalysis] Response content length:', message.content[0]?.text?.length || 0)
+    console.log('[CompanyAnalysis] Received response from Gemini')
 
-    const responseText = message.content[0].text
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      console.log('[CompanyAnalysis] Successfully parsed JSON response')
-      let analysis = JSON.parse(jsonMatch[0])
-      // Calculate overallRating as average of category ratings
-      const categories = ['marketPosition', 'businessModel', 'industryTrends', 'customerBase', 'growthStrategy', 'economicMoat']
-      const ratings = categories.map(cat => analysis[cat]?.rating).filter(r => typeof r === 'number')
-      analysis.overallRating = ratings.length > 0 ? Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length) : 5
-      return analysis
+    // Gemini with responseMimeType should return valid JSON directly
+    let analysis = JSON.parse(responseText)
+
+    // Calculate overallRating as average of category ratings if not provided or valid
+    const categories = ['marketPosition', 'businessModel', 'industryTrends', 'customerBase', 'growthStrategy', 'economicMoat']
+    const ratings = categories.map(cat => analysis[cat]?.rating).filter(r => typeof r === 'number')
+    if (ratings.length > 0) {
+      analysis.overallRating = Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
     }
-    throw new Error('Could not parse AI response')
+
+    return analysis
+
   } catch (error) {
     console.error('[CompanyAnalysis] AI company analysis failed:', error.message)
     console.error('[CompanyAnalysis] Error stack:', error.stack)
@@ -133,15 +129,21 @@ function generateFallbackCompanyAnalysis(symbol, scrapedData = {}) {
 
 // Helper function to generate AI insights for other sections
 async function generateAIInsight(symbol, dataType, scrapedData = {}) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
 
-  if (!apiKey || apiKey.trim() === '') {
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'your_gemini_api_key_here') {
     return generateFallbackInsight(symbol, dataType, scrapedData)
   }
 
   try {
-    const anthropic = new Anthropic({
-      apiKey: apiKey
+    const genAI = new GoogleGenerativeAI(apiKey)
+    // For specific JSON structures in technical/recent developments, use JSON mode
+    // For others (simple text), use default text mode
+    const isJsonExpected = dataType === 'technicalAnalysis' || dataType === 'recentDevelopments'
+
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: isJsonExpected ? { responseMimeType: "application/json" } : undefined
     })
 
     const prompts = {
@@ -170,7 +172,7 @@ Provide your analysis in the following JSON format:
   "trend30to60Days": "Detailed outlook for the next 30-60 days based on technical patterns, momentum indicators, and historical price action. Include specific price targets if the trend continues.",
   "targetPriceAnalysis": "Analysis of the analyst target price - what it implies for upside/downside potential and how it aligns with technical levels",
   "optionsStrategy": "Specific recommendation on whether to sell puts or covered calls based on the technical setup, with suggested strike price levels",
-  "rating": "A number from 0-10 based on the strength of the technical setup and bullish/bearish signals"
+  "rating": 7
 }
 
 Use your knowledge of ${symbol}'s recent price history, chart patterns, moving averages (50-day, 200-day), RSI, MACD, and volume trends. Be specific with price levels. Return ONLY valid JSON.`,
@@ -204,7 +206,7 @@ Provide your analysis in the following JSON format:
   ],
   "catalysts": "Key upcoming catalysts that options traders should be aware of (product launches, regulatory decisions, macro events, etc.)",
   "optionsImplication": "Whether current news environment favors selling premium or staying on sidelines",
-  "rating": "A number from 0-10 based on the significance of recent developments and upcoming events"
+  "rating": 7
 }
 
 Use your knowledge of ${symbol}'s recent news, earnings schedule, product announcements, and market events. Be specific and current. Return ONLY valid JSON.`
@@ -212,16 +214,10 @@ Use your knowledge of ${symbol}'s recent news, earnings schedule, product announ
 
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
-    // Use more tokens for technical and recent developments analysis
-    const needsMoreTokens = dataType === 'technicalAnalysis' || dataType === 'recentDevelopments'
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    return response.text()
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: needsMoreTokens ? 1000 : 300,
-      messages: [{ role: 'user', content: prompt }]
-    })
-
-    return message.content[0].text
   } catch (error) {
     console.error('AI insight generation failed:', error.message)
     return generateFallbackInsight(symbol, dataType, scrapedData)
@@ -283,7 +279,7 @@ async function scrapeCompanyAnalysis(symbol) {
       const $yahoo = cheerio.load(yahooResponse.data)
       if (!scrapedInfo.description) {
         scrapedInfo.description = $yahoo('p[class*="description"]').first().text().trim() ||
-                                   $yahoo('section[data-test="description"]').text().trim()
+          $yahoo('section[data-test="description"]').text().trim()
       }
       if (!scrapedInfo.sector) scrapedInfo.sector = $yahoo('span:contains("Sector")').next().text().trim()
       if (!scrapedInfo.industry) scrapedInfo.industry = $yahoo('span:contains("Industry")').next().text().trim()
@@ -445,7 +441,7 @@ async function scrapeTechnicalAnalysis(symbol) {
     })
     const $ = cheerio.load(response.data)
     currentPrice = $('[data-test="stock-price"]').first().text().trim() ||
-                   $('.text-3xl, .text-4xl').first().text().trim()
+      $('.text-3xl, .text-4xl').first().text().trim()
     if (currentPrice) {
       metrics.push({ label: 'Current Price', value: currentPrice })
     }
@@ -464,8 +460,8 @@ async function scrapeTechnicalAnalysis(symbol) {
 
     // Look for analyst price target
     targetPrice = $forecast('[data-test="target-price"]').first().text().trim() ||
-                  $forecast('td:contains("Price Target")').next().text().trim() ||
-                  $forecast('.text-2xl:contains("$")').first().text().trim()
+      $forecast('td:contains("Price Target")').next().text().trim() ||
+      $forecast('.text-2xl:contains("$")').first().text().trim()
 
     // Try alternative selectors
     if (!targetPrice) {
