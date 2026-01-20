@@ -244,8 +244,8 @@ function App() {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br text-white transition-colors duration-300 relative ${theme === 'light'
-        ? 'from-gray-50 via-white to-blue-50'
-        : 'from-[#0f172a] via-[#1e293b] to-[#0f172a]'
+      ? 'from-gray-50 via-white to-blue-50'
+      : 'from-[#0f172a] via-[#1e293b] to-[#0f172a]'
       }`}>
       {/* Background Glows */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
@@ -254,9 +254,9 @@ function App() {
       </div>
 
       {/* Header */}
-      <header className={`sticky top-0 z-50 border-b backdrop-blur-2xl transition-all duration-300 ${theme === 'light'
-          ? 'border-gray-200 bg-white/70'
-          : 'border-white/5 bg-gray-900/60'
+      <header className={`sticky top-0 z-50 glass-nav ${theme === 'light'
+        ? 'bg-white/70 border-gray-200'
+        : 'border-white/5'
         }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -317,9 +317,9 @@ function App() {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className={`sticky top-20 z-40 border-b backdrop-blur-xl transition-all duration-300 ${theme === 'light'
-          ? 'border-gray-200 bg-gray-50/50'
-          : 'border-white/5 bg-gray-900/40'
+      <nav className={`sticky top-20 z-40 glass-nav ${theme === 'light'
+        ? 'bg-gray-50/50 border-gray-200'
+        : 'border-white/5'
         }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1">
@@ -331,8 +331,8 @@ function App() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`relative flex items-center space-x-2 py-5 px-6 font-bold text-sm transition-all duration-300 ${isActive
-                      ? 'text-blue-400'
-                      : 'text-gray-500 hover:text-gray-300'
+                    ? 'text-blue-400'
+                    : 'text-gray-500 hover:text-gray-300'
                     }`}
                 >
                   <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />

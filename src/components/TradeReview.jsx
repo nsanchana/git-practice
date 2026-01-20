@@ -575,7 +575,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       {analysis && (
         <div className="space-y-4">
           {/* Trade Summary */}
-          <div className="card border-l-4 border-l-primary-500">
+          <div className="glass-card border-l-4 border-l-primary-500">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xl font-bold">
@@ -643,7 +643,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
           </div>
 
           {/* Risk Assessment */}
-          <div className="card">
+          <div className="glass-card">
             <h4 className="text-lg font-semibold mb-4 flex items-center">
               <AlertTriangle className="h-5 w-5 mr-2" />
               Risk Assessment
@@ -674,9 +674,9 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
             <div className="space-y-2">
               {analysis.riskAssessment.factors?.map((factor, index) => (
                 <div key={index} className={`p-3 rounded-lg ${factor.type === 'positive' ? 'bg-green-900 text-green-300' :
-                    factor.type === 'warning' ? 'bg-yellow-900 text-yellow-300' :
-                      factor.type === 'info' ? 'bg-blue-900 text-blue-300' :
-                        'bg-red-900 text-red-300'
+                  factor.type === 'warning' ? 'bg-yellow-900 text-yellow-300' :
+                    factor.type === 'info' ? 'bg-blue-900 text-blue-300' :
+                      'bg-red-900 text-red-300'
                   }`}>
                   <div className="font-medium">{factor.message}</div>
                   {factor.detail && (
@@ -704,7 +704,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
           </div>
 
           {/* Recommendation */}
-          <div className="card">
+          <div className="glass-card">
             <h4 className="text-lg font-semibold mb-4 flex items-center">
               <TrendingUp className="h-5 w-5 mr-2" />
               Trade Recommendation
@@ -838,8 +838,8 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                       )}
                       <div
                         className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
-                            ? 'bg-primary-600 text-white'
-                            : 'glass-item text-gray-200'
+                          ? 'bg-primary-600 text-white'
+                          : 'glass-item text-gray-200'
                           }`}
                       >
                         <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -895,8 +895,8 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
           <div className="space-y-4">
             {tradeData.slice(0, 10).map((trade, index) => (
               <div key={index} className={`p-4 rounded-lg ${trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
-                  trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
-                    'bg-gray-700'
+                trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
+                  'bg-gray-700'
                 }`}>
                 {/* Top Row: Symbol, Type, and Status */}
                 <div className="flex justify-between items-start mb-3">

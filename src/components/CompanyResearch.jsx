@@ -388,7 +388,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
     const isRecentDevelopments = sectionKey === 'recentDevelopments'
 
     return (
-      <div className="card">
+      <div className="glass-card">
         <button
           onClick={() => toggleSection(sectionKey)}
           className="w-full flex items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors"
@@ -763,7 +763,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
           {renderSection('Recent Developments', 'recentDevelopments', companyData.recentDevelopments, companyData.recentDevelopments?.rating)}
 
           {/* Chat Interface */}
-          <div className="card">
+          <div className="glass-card">
             <button
               onClick={() => setChatOpen(!chatOpen)}
               className="w-full flex items-center justify-between p-4 hover:bg-white/5 rounded-lg transition-colors"

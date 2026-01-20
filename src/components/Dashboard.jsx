@@ -384,25 +384,25 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
           {tradeData.length > 0 ? (
             <div className="space-y-3">
               {tradeData.slice(0, 5).map((item, index) => (
-                <div key={index} className={`flex justify-between items-center p-3 rounded-lg ${item.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
-                  item.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
-                    'glass-item'
+                <div key={index} className={`glass-item flex justify-between items-center ${item.status === 'executed' ? 'border-green-500/30 bg-green-900/10' :
+                  item.status === 'planned' ? 'border-blue-500/30 bg-blue-900/10' :
+                    ''
                   }`}>
                   <div className="flex-1">
                     <p className="font-semibold">
                       {item.symbol} {item.type?.toUpperCase() || item.tradeType?.toUpperCase()}
                       {item.status === 'executed' && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-green-500/20 text-green-300 border border-green-500/30 rounded shadow-[0_0_10px_rgba(34,197,94,0.2)]">
                           EXECUTED
                         </span>
                       )}
                       {item.status === 'planned' && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded shadow-[0_0_10px_rgba(59,130,246,0.2)]">
                           PLANNED
                         </span>
                       )}
                       {!item.status && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-gray-500/20 text-gray-300 border border-gray-500/30 rounded">
                           RESEARCH
                         </span>
                       )}
@@ -413,8 +413,8 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
-                      <p className="text-sm">${item.premium} premium</p>
-                      <p className={`text-xs ${item.rating >= 7 ? 'text-green-400' :
+                      <p className="text-sm font-medium text-white shadow-black drop-shadow-sm">${item.premium} premium</p>
+                      <p className={`text-xs font-bold ${item.rating >= 7 ? 'text-green-400' :
                         item.rating >= 5 ? 'text-yellow-400' : 'text-red-400'
                         }`}>
                         Rating: {item.rating}/10
@@ -425,14 +425,14 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                         <>
                           <button
                             onClick={() => handleEditTrade(item)}
-                            className="p-2 hover:bg-blue-900/50 rounded-lg transition-colors"
+                            className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors border border-transparent hover:border-blue-500/30"
                             title="Edit planned trade (opens in Trade Review)"
                           >
                             <Edit className="h-3 w-3 text-blue-400" />
                           </button>
                           <button
                             onClick={() => handleConvertToExecuted(item)}
-                            className="p-2 hover:bg-green-900/50 rounded-lg transition-colors"
+                            className="p-2 hover:bg-green-500/20 rounded-lg transition-colors border border-transparent hover:border-green-500/30"
                             title="Convert to executed trade"
                           >
                             <CheckCircle className="h-3 w-3 text-green-400" />
@@ -442,7 +442,7 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                       {(item.status === 'planned' || item.status === 'executed') && (
                         <button
                           onClick={() => handleDeleteTrade(item.id)}
-                          className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
+                          className="p-2 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
                           title="Delete trade"
                         >
                           <Trash2 className="h-3 w-3 text-red-400" />
