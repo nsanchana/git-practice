@@ -993,30 +993,42 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                 </div>
 
                 {/* Trade Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Strike Price</div>
-                    <div className="text-lg font-bold text-white">${trade.strikePrice}</div>
+                    <div className="text-xs text-gray-400 mb-1">Stock Price</div>
+                    <div className="text-lg font-bold text-white">${trade.stockPrice?.toFixed(2) || 'N/A'}</div>
                   </div>
                   <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Expiry Date</div>
-                    <div className="text-lg font-bold text-yellow-400">{formatDateDDMMYYYY(trade.expirationDate)}</div>
+                    <div className="text-xs text-gray-400 mb-1">Strike Price</div>
+                    <div className="text-lg font-bold text-white">${trade.strikePrice?.toFixed(2)}</div>
+                  </div>
+                  <div className="glass-item">
+                    <div className="text-xs text-gray-400 mb-1">Variance</div>
+                    <div className={`text-lg font-bold ${(trade.stockPrice - trade.strikePrice) > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      ${(trade.stockPrice - trade.strikePrice).toFixed(2)}
+                      <span className="text-xs ml-1 opacity-70">
+                        ({(((trade.stockPrice - trade.strikePrice) / trade.strikePrice) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
                   </div>
                   <div className="glass-item">
                     <div className="text-xs text-gray-400 mb-1">Premium</div>
-                    <div className="text-lg font-bold text-green-400">${trade.premium}</div>
+                    <div className="text-lg font-bold text-emerald-400">${trade.premium?.toFixed(2)}</div>
                   </div>
                   <div className="glass-item">
-                    <div className="text-xs text-gray-400 mb-1">Analysis Date</div>
-                    <div className="text-lg font-bold text-gray-300">{formatDateDDMMYYYY(trade.timestamp)}</div>
+                    <div className="text-xs text-gray-400 mb-1">Days Left</div>
+                    <div className="text-lg font-bold text-blue-400">
+                      {Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))}d
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   )
 }
 
