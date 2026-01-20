@@ -16,6 +16,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   const [selectedSymbol, setSelectedSymbol] = useState('')
   const [strikePrice, setStrikePrice] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
+  const [tradeDate, setTradeDate] = useState(new Date().toISOString().split('T')[0])
   const [tradeType, setTradeType] = useState('cashSecuredPut') // cashSecuredPut or coveredCall
   const [currentPrice, setCurrentPrice] = useState('')
   const [premium, setPremium] = useState('')
@@ -131,10 +132,16 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   }
 
   const handleQuickSave = (tradeStatus) => {
-    if (!selectedSymbol || !strikePrice || !expirationDate || !currentPrice || !premium) {
+    if (!selectedSymbol || !strikePrice || !expirationDate || !currentPrice || !premium || !tradeDate) {
       alert('Please fill in all required fields before saving.')
       return
     }
+
+    // Create timestamp from selected trade date
+    // Set time to noon to avoid timezone issues shifting the date
+    const timestamp = new Date(tradeDate)
+    timestamp.setHours(12, 0, 0, 0)
+    const timestampIso = timestamp.toISOString()
 
     // Create a minimal trade record without full analysis
     const quickTrade = {
@@ -152,8 +159,8 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       executed: tradeStatus === 'executed',
       planned: tradeStatus === 'planned',
       status: tradeStatus,
-      timestamp: new Date().toISOString(),
-      executionDate: tradeStatus === 'executed' ? new Date().toISOString() : null,
+      timestamp: timestampIso,
+      executionDate: tradeStatus === 'executed' ? timestampIso : null,
       // Minimal data for quick save (no full analysis)
       rating: 5, // Neutral rating
       riskAssessment: {
@@ -182,8 +189,8 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
     // Show success message
     const message = tradeStatus === 'executed'
-      ? `${selectedSymbol} trade saved as EXECUTED! This will count toward your weekly premium goal.`
-      : `${selectedSymbol} trade saved as PLANNED! This is tracked but won't count toward your goals until executed.`
+      ? `${selectedSymbol} trade saved as EXECUTED on ${formatDateDDMMYYYY(timestampIso)}!`
+      : `${selectedSymbol} trade saved as PLANNED for ${formatDateDDMMYYYY(timestampIso)}!`
     alert(message)
 
     // Clear the form
@@ -193,10 +200,11 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
     setCurrentPrice('')
     setPremium('')
     setPriceError('')
+    // Keep the date as is, user might be entering multiple historic trades
   }
 
   const handleAnalyze = async () => {
-    if (!selectedSymbol || !strikePrice || !expirationDate || !currentPrice || !premium) return
+    if (!selectedSymbol || !strikePrice || !expirationDate || !currentPrice || !premium || !tradeDate) return
 
     setLoading(true)
     try {
@@ -267,6 +275,11 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
         }
       )
 
+      // Create timestamp from selected trade date
+      const timestamp = new Date(tradeDate)
+      timestamp.setHours(12, 0, 0, 0)
+      const timestampIso = timestamp.toISOString()
+
       const tradeAnalysis = {
         id: Date.now(),
         symbol: selectedSymbol.toUpperCase(),
@@ -285,7 +298,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
         riskMetrics: riskAssessment, // Dashboard expects this property name
         recommendation,
         earningsAndEvents,
-        timestamp: new Date().toISOString(),
+        timestamp: timestampIso,
         companyRating,
         hasResearchData: !!companyData
       }
@@ -333,7 +346,9 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       ...analysis,
       executed: tradeStatus === 'executed',
       planned: tradeStatus === 'planned',
-      status: tradeStatus
+      status: tradeStatus,
+      // Execution date matches the trade date for consistency if executed immediately
+      executionDate: tradeStatus === 'executed' ? analysis.timestamp : null
     }
 
     // Update the current analysis
@@ -350,8 +365,8 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
     // Show success message
     const message = tradeStatus === 'executed'
-      ? `Trade for ${analysis.symbol} saved as EXECUTED! This will count toward your weekly premium goal and capital utilization.`
-      : `Trade for ${analysis.symbol} saved as PLANNED! This is tracked but won't count toward your goals until executed.`
+      ? `Trade for ${analysis.symbol} saved as EXECUTED on ${formatDateDDMMYYYY(analysis.timestamp)}!`
+      : `Trade for ${analysis.symbol} saved as PLANNED!`
     alert(message)
   }
 
@@ -377,6 +392,16 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
     setCurrentPrice(trade.stockPrice.toString())
     setPremium(trade.premium.toString())
 
+    // Set timestamp/date - check if it's a valid date string
+    if (trade.timestamp) {
+      try {
+        setTradeDate(new Date(trade.timestamp).toISOString().split('T')[0])
+      } catch (e) {
+        console.error("Invalid date in trade:", trade.timestamp)
+        setTradeDate(new Date().toISOString().split('T')[0])
+      }
+    }
+
     // Set the analysis to the trade so it can be updated
     setAnalysis(trade)
 
@@ -385,16 +410,16 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   }
 
   const handleConvertToExecuted = (trade) => {
-    if (!confirm('Convert this planned trade to executed? This will update the execution date to today and count toward your weekly goals.')) return
+    if (!confirm('Convert this planned trade to executed? This will mark it as executed on the original trade date.')) return
 
-    // Update the trade to executed status with new timestamp
+    // Update the trade to executed status
     const executedTrade = {
       ...trade,
       executed: true,
       planned: false,
       status: 'executed',
-      timestamp: new Date().toISOString(), // Update to current date/time
-      executionDate: new Date().toISOString() // Add execution date
+      // Maintain original timestamp/trade date, just set execution date to same
+      executionDate: trade.timestamp
     }
 
     // Update tradeData array
@@ -409,7 +434,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       setAnalysis(executedTrade)
     }
 
-    alert(`Trade for ${trade.symbol} converted to EXECUTED! Execution date set to ${formatDateDDMMYYYY(new Date().toISOString())}.`)
+    alert(`Trade for ${trade.symbol} converted to EXECUTED on ${formatDateDDMMYYYY(trade.timestamp)}.`)
   }
 
   const getRecommendationColor = (action) => {
@@ -515,6 +540,17 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                 onChange={(e) => setPremium(e.target.value)}
                 placeholder="0.00"
                 className="glass-input w-full py-4 text-xl font-black text-emerald-400"
+              />
+            </div>
+
+            {/* Trade Entry Date */}
+            <div className="space-y-3">
+              <label className="block text-[11px] font-black text-gray-500 uppercase tracking-[0.2em] ml-1">Trade Entry Date</label>
+              <input
+                type="date"
+                value={tradeDate}
+                onChange={(e) => setTradeDate(e.target.value)}
+                className="glass-input w-full py-4 font-bold"
               />
             </div>
 
