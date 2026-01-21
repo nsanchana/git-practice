@@ -72,7 +72,7 @@ Use this information to answer questions about this trade. Be specific, referenc
     }
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt
     })
 
@@ -100,7 +100,7 @@ Use this information to answer questions about this trade. Be specific, referenc
 
     return res.status(200).json({
       response: text,
-      model: 'gemini-1.5-pro'
+      model: 'gemini-2.5-flash'
     })
   } catch (error) {
     console.error('Trade chat error:', error.message)
