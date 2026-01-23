@@ -352,6 +352,7 @@ function App() {
         {activeTab === 'dashboard' && (
           <Dashboard
             researchData={researchData}
+            setResearchData={setResearchData}
             tradeData={tradeData}
             setTradeData={setTradeData}
             settings={settings}

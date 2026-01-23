@@ -30,6 +30,23 @@ const User = sequelize.define('User', {
   }
 })
 
+// Define AICache model
+const AICache = sequelize.define('AICache', {
+  key: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false
+  },
+  value: {
+    type: DataTypes.TEXT,
+    allowNull: false
+  },
+  expiry: {
+    type: DataTypes.DATE,
+    allowNull: false
+  }
+})
+
 // Initialize session store
 const sessionStore = new SessionStore({
   db: sequelize
@@ -94,4 +111,4 @@ export function getSessionConfig(secret) {
 // Initialize session store
 sessionStore.sync()
 
-export { User, sequelize }
+export { User, AICache, sequelize }

@@ -5,23 +5,48 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
-// Simple in-memory cache
+// Fallback AICache model if not importable
+let AICache;
+try {
+  const auth = await import('../../auth.js');
+  AICache = auth.AICache;
+} catch (e) {
+  // If we can't import (e.g. in some serverless env), we'll define a dummy or use a different approach
+  // But since we are in the same repo, it should work.
+}
+
+// Simple in-memory cache with SQLite persistence
 const cache = {
-  data: new Map(),
-  get(key) {
-    const item = this.data.get(key)
-    if (!item) return null
-    if (Date.now() > item.expiry) {
-      this.data.delete(key)
+  async get(key) {
+    if (!AICache) return null;
+    try {
+      const item = await AICache.findOne({ where: { key } })
+      if (!item) return null
+      if (new Date() > new Date(item.expiry)) {
+        await AICache.destroy({ where: { key } })
+        return null
+      }
+      return JSON.parse(item.value)
+    } catch (e) {
+      console.error('Cache get failed:', e.message)
       return null
     }
-    return item.value
   },
-  set(key, value, ttl = 86400000) { // Default 24 hours (reduced API calls)
-    this.data.set(key, {
-      value,
-      expiry: Date.now() + ttl
-    })
+  async set(key, value, ttl = 86400000) { // Default 24 hours
+    if (!AICache) return;
+    try {
+      const expiry = new Date(Date.now() + ttl)
+      const valStr = JSON.stringify(value)
+
+      const existing = await AICache.findOne({ where: { key } })
+      if (existing) {
+        await existing.update({ value: valStr, expiry })
+      } else {
+        await AICache.create({ key, value: valStr, expiry })
+      }
+    } catch (e) {
+      console.error('Cache set failed:', e.message)
+    }
   }
 }
 
@@ -53,7 +78,7 @@ async function generateComprehensiveCompanyAnalysis(symbol, scrapedData = {}) {
   const apiKey = process.env.GEMINI_API_KEY
   const cacheKey = `companyAnalysis_${symbol}`
 
-  const cachedResult = cache.get(cacheKey)
+  const cachedResult = await cache.get(cacheKey)
   if (cachedResult) {
     console.log(`[Cache] Returning cached company analysis for ${symbol}`)
     return cachedResult
@@ -142,7 +167,7 @@ Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide m
       analysis.overallRating = Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
     }
 
-    cache.set(cacheKey, analysis)
+    await cache.set(cacheKey, analysis)
     return analysis
 
   } catch (error) {
@@ -198,17 +223,31 @@ async function generateAIInsight(symbol, dataType, scrapedData = {}) {
     // For specific JSON structures in technical/recent developments, use JSON mode
     // For others (simple text), use default text mode
     const isJsonExpected = dataType === 'technicalAnalysis' || dataType === 'recentDevelopments'
+    const cacheKey = `${dataType}_${symbol}`
+
+    const cachedResult = await cache.get(cacheKey)
+    if (cachedResult) {
+      console.log(`[Cache] Returning cached insight for ${dataType} - ${symbol}`)
+      return cachedResult
+    }
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       generationConfig: isJsonExpected ? { responseMimeType: "application/json" } : undefined
     })
 
-    const prompts = {
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
 
+    const prompts = {
       financialHealth: `Analyze this financial data for ${symbol} for options trading purposes:
 
 ${JSON.stringify(scrapedData.metrics || [], null, 2)}
+
+Today's Date: ${currentDate}
 
 Provide a 2-3 sentence analysis focused on:
 1. Financial strength and stability for supporting options strategies
@@ -219,6 +258,7 @@ Be concise and actionable for options traders.`,
 
       technicalAnalysis: `You are a technical analyst. Provide a detailed technical analysis for ${symbol}.
 
+Today's Date: ${currentDate}
 Current Price: ${scrapedData.currentPrice || 'Not available'}
 Target Price: ${scrapedData.targetPrice || 'Not available'}
 
@@ -239,6 +279,8 @@ Use your knowledge of ${symbol}'s recent price history, chart patterns, moving a
 
 ${JSON.stringify(scrapedData.metrics || [], null, 2)}
 
+Today's Date: ${currentDate}
+
 Provide a 2-3 sentence analysis focused on:
 1. Implied volatility environment
 2. Liquidity and open interest insights
@@ -248,33 +290,37 @@ Be actionable for options income traders.`,
 
       recentDevelopments: `You are a financial analyst tracking ${symbol}. Provide analysis of recent developments and upcoming events.
 
+Today's Date: ${currentDate}
+Scraped Data Context: ${JSON.stringify(scrapedData)}
+
 Provide your analysis in the following JSON format:
 {
   "summary": "2-3 sentence overview of current news sentiment and key developments",
   "nextEarningsCall": {
-    "date": "Expected date of next earnings call (e.g., 'January 30, 2025' or 'Q1 2025 - exact date TBD')",
-    "expectation": "Brief analysis of what to expect from the earnings report"
+    "date": "Expected date of next earnings call. MUST be in the future (after ${currentDate}). Format: 'Month DD, YYYY'",
+    "expectation": "Brief analysis of what to expect from the upcoming earnings report"
   },
   "majorEvents": [
     {
-      "event": "Description of upcoming event or recent major news",
+      "event": "Description of upcoming event or VERY RECENT major news (from late 2025 or 2026)",
       "expectedImpact": "How this could impact the stock price",
       "date": "When this is happening or happened"
     }
   ],
-  "catalysts": "Key upcoming catalysts that options traders should be aware of (product launches, regulatory decisions, macro events, etc.)",
+  "catalysts": "Key upcoming catalysts that options traders should be aware of in 2026 (product launches, regulatory decisions, macro events, etc.)",
   "optionsImplication": "Whether current news environment favors selling premium or staying on sidelines",
   "rating": 7
 }
 
-Use your knowledge of ${symbol}'s recent news, earnings schedule, product announcements, and market events. Be specific and current. Return ONLY valid JSON.`
+CRITICAL: The 'Next Earnings Call' MUST be a future date relative to ${currentDate}. If unsure, provide an estimate based on typical cycles (e.g., 'Late March 2026'). Do NOT use dates from 2024.
+Return ONLY valid JSON.`
     }
 
     const prompt = prompts[dataType] || `Analyze ${dataType} for ${symbol} with data: ${JSON.stringify(scrapedData)}`
 
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
-    cache.set(cacheKey, responseText)
+    await cache.set(cacheKey, responseText)
     return responseText
 
   } catch (error) {
@@ -523,10 +569,59 @@ async function scrapeTechnicalAnalysis(symbol) {
       resistanceLevels.push(`${fiftyTwoWeekHigh} - 52-Week High`)
     }
     if (fiftyTwoWeekLow) {
-      supportLevels.push(`${fiftyTwoWeekLow} - 52-Week Low`)
+      supportLevels.push(`${fiftyTwoWeekLow} - 52-Week Low (StockAnalysis)`)
     }
   } catch (error) {
-    console.log('Technical scraping failed')
+    console.log('Technical scraping failed:', error.message)
+  }
+
+  // Scrape from GuruFocus for S/R and Analyst Target
+  try {
+    const gfUrl = `https://www.gurufocus.com/stock/${symbol.toUpperCase()}/summary`
+    const gfResponse = await axios.get(gfUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      timeout: 10000
+    })
+    const $gf = cheerio.load(gfResponse.data)
+
+    const gfTarget = $gf('td:contains("Analyst Price Target")').next().text().trim() ||
+      $gf('.stock-indicator-value:contains("$")').first().text().trim()
+
+    if (gfTarget && gfTarget.includes('$')) {
+      metrics.push({ label: 'Analyst Target (GuruFocus)', value: gfTarget })
+      if (!targetPrice) targetPrice = gfTarget
+    }
+
+    const sma50 = $gf('td:contains("SMA50")').next().text().trim()
+    const sma200 = $gf('td:contains("SMA200")').next().text().trim()
+
+    if (sma50) supportLevels.push(`${sma50} - SMA50 (GuruFocus)`)
+    if (sma200) resistanceLevels.push(`${sma200} - SMA200 (GuruFocus)`)
+  } catch (error) {
+    console.log('GuruFocus scraping failed:', error.message)
+  }
+
+  // Scrape from Finviz for S/R
+  try {
+    const fvUrl = `https://finviz.com/quote.ashx?t=${symbol.toUpperCase()}`
+    const fvResponse = await axios.get(fvUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      timeout: 10000
+    })
+    const $fv = cheerio.load(fvResponse.data)
+
+    const fvTarget = $fv('td:contains("Target Price")').next().find('b').text().trim()
+    if (fvTarget && !isNaN(parseFloat(fvTarget))) {
+      metrics.push({ label: 'Target Price (Finviz)', value: `$${fvTarget}` })
+    }
+
+    const low52W = $fv('td:contains("52W Range")').next().text().split('-')[0].trim()
+    const high52W = $fv('td:contains("52W Range")').next().text().split('-')[1].trim()
+
+    if (low52W) supportLevels.push(`${low52W} - 52W Low (Finviz)`)
+    if (high52W) resistanceLevels.push(`${high52W} - 52W High (Finviz)`)
+  } catch (error) {
+    console.log('Finviz scraping failed:', error.message)
   }
 
   // Scrape target price from StockAnalysis forecast page
@@ -558,7 +653,7 @@ async function scrapeTechnicalAnalysis(symbol) {
     }
 
     if (targetPrice) {
-      metrics.push({ label: 'Target Price', value: targetPrice })
+      metrics.push({ label: 'Target Price (StockAnalysis)', value: targetPrice })
     }
   } catch (error) {
     console.log('Target price scraping failed')
@@ -751,8 +846,36 @@ async function scrapeRecentDevelopments(symbol) {
   const signals = []
   let rating = 6
 
-  // Get comprehensive AI analysis for recent developments
-  const aiResponse = await generateAIInsight(symbol, 'recentDevelopments', {})
+  let scrapedNews = []
+  let nextEarningsDate = null
+
+  // Try to scrape actual next earnings from Yahoo Finance or StockAnalysis
+  try {
+    const yahooUrl = `https://finance.yahoo.com/quote/${symbol}/`
+    const response = await axios.get(yahooUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      timeout: 10000
+    })
+    const $ = cheerio.load(response.data)
+
+    // Yahoo often has earnings date in a <td> after "Earnings Date"
+    nextEarningsDate = $('td[data-test="EARNINGS_DATE-value"]').text().trim() ||
+      $('span:contains("Earnings Date")').next().text().trim()
+
+    // Simple news scraping from the page if possible
+    $('h3 a').each((i, el) => {
+      if (i < 3) scrapedNews.push($(el).text().trim())
+    })
+  } catch (error) {
+    console.log('Yahoo news/earnings scraping failed')
+  }
+
+  // Get comprehensive AI analysis for recent developments with context
+  const aiResponse = await generateAIInsight(symbol, 'recentDevelopments', {
+    scrapedNews,
+    scrapedEarningsDate: nextEarningsDate,
+    currentDate: new Date().toLocaleDateString()
+  })
 
   // Try to parse JSON response from AI
   let developmentsData = null

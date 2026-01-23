@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { DollarSign, TrendingUp, Target, Calendar, AlertCircle, CheckCircle, Trash2, Edit } from 'lucide-react'
+import { DollarSign, TrendingUp, Target, Calendar, AlertCircle, CheckCircle, Trash2, Edit, RefreshCw } from 'lucide-react'
 import {
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth,
@@ -7,6 +7,8 @@ import {
   isWithinInterval
 } from 'date-fns'
 import { saveToLocalStorage } from '../utils/storage'
+import { scrapeCompanyData } from '../services/webScraping'
+import { useState } from 'react'
 
 // Helper function to format dates as DD/MM/YYYY
 const formatDateDDMMYYYY = (dateString) => {
@@ -126,7 +128,9 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon }) => {
   )
 }
 
-function Dashboard({ researchData, tradeData, setTradeData, settings }) {
+const Dashboard = ({ researchData, setResearchData, tradeData, setTradeData, settings }) => {
+  const [rerunningId, setRerunningId] = useState(null)
+
   const handleDeleteTrade = (tradeId) => {
     if (!confirm('Are you sure you want to delete this trade?')) return
 
@@ -137,6 +141,74 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
 
   const handleEditTrade = () => {
     alert('To edit this trade, please go to the Trade Review tab where it will be loaded for editing.')
+  }
+
+  const handleDeleteResearch = (index) => {
+    const itemToDelete = researchData[index]
+    if (window.confirm(`Delete research for ${itemToDelete.symbol}?`)) {
+      const updatedResearchData = researchData.filter((_, i) => i !== index)
+      setResearchData(updatedResearchData)
+      saveToLocalStorage('researchData', updatedResearchData)
+    }
+  }
+
+  const handleRerunResearch = async (oldSymbol, index) => {
+    setRerunningId(index)
+
+    try {
+      const sections = [
+        'companyAnalysis',
+        'financialHealth',
+        'technicalAnalysis',
+        'recentDevelopments'
+      ]
+
+      const results = {}
+
+      for (const section of sections) {
+        console.log(`Scraping ${section} for ${oldSymbol}...`)
+        const sectionData = await scrapeCompanyData(oldSymbol, section)
+        results[section] = sectionData
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+
+      // Calculate overall rating
+      const sectionRatings = [
+        results.companyAnalysis?.rating || 0,
+        results.financialHealth?.rating || 0,
+        results.technicalAnalysis?.rating || 0,
+        results.recentDevelopments?.rating || 0
+      ].filter(rating => rating > 0)
+
+      const overallRating = sectionRatings.length > 0
+        ? Math.round(sectionRatings.reduce((sum, rating) => sum + rating, 0) / sectionRatings.length)
+        : 0
+
+      const updatedEntry = {
+        symbol: oldSymbol,
+        date: new Date().toISOString(),
+        ...results,
+        overallRating,
+        lastRefresh: new Date().toISOString(),
+        saved: true
+      }
+
+      // Update in place (or move to top? usually move to top)
+      // Moving to top seems better for "Recent"
+      const filteredData = researchData.filter((_, i) => i !== index)
+      const updatedResearchData = [updatedEntry, ...filteredData]
+
+      setResearchData(updatedResearchData)
+      saveToLocalStorage('researchData', updatedResearchData)
+
+      alert(`Successfully refreshed research for ${oldSymbol}!`)
+    } catch (err) {
+      console.error('Rerun error:', err)
+      alert(`Failed to refresh research: ${err.message}`)
+    } finally {
+      setRerunningId(null)
+    }
   }
 
   const handleConvertToExecuted = (trade) => {
@@ -323,10 +395,14 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
             <div className="space-y-3">
               {dashboardStats.recentResearch.map((item, index) => {
                 // Extract current price and target price from technical analysis
-                const currentPrice = item.technicalAnalysis?.currentPrice ||
+                let currentPrice = item.technicalAnalysis?.currentPrice ||
                   item.technicalAnalysis?.metrics?.find(m => m.label === 'Current Price')?.value
-                const targetPrice = item.technicalAnalysis?.targetPrice ||
+                let targetPrice = item.technicalAnalysis?.targetPrice ||
                   item.technicalAnalysis?.metrics?.find(m => m.label === 'Target Price')?.value
+
+                // Sanitize prices (remove trailing commas/spaces)
+                if (currentPrice) currentPrice = currentPrice.replace(/,\s*$/, '').trim()
+                if (targetPrice) targetPrice = targetPrice.replace(/,\s*$/, '').trim()
 
                 // Calculate upside
                 let upsidePercent = null
@@ -338,44 +414,98 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                   }
                 }
 
+                const isRerunning = rerunningId === index
+
                 return (
-                  <div key={index} className="glass-item hover:bg-white/10 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-3">
-                        <p className="font-bold text-xl text-white">{item.symbol}</p>
-                        <div className={`text-lg font-black px-3 py-1 rounded-lg ${item.overallRating >= 7 ? 'text-green-400 bg-green-500/10 border border-green-500/30' :
-                            item.overallRating >= 5 ? 'text-yellow-400 bg-yellow-500/10 border border-yellow-500/30' :
-                              'text-red-400 bg-red-500/10 border border-red-500/30'
-                          }`}>
-                          {item.overallRating}/100
+                  <div key={index} className="glass-item p-5 hover:bg-white/5 transition-all duration-300 border border-white/5 hover:border-white/10 group relative overflow-hidden">
+                    {/* Background Glow Effect */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none transition-opacity opacity-50 group-hover:opacity-100"></div>
+
+                    {/* Header Row */}
+                    <div className="flex justify-between items-start mb-6 relative z-10">
+                      <div className="flex items-center space-x-4">
+                        {/* Gradient Initials Icon */}
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 p-[1px] shadow-lg shadow-blue-500/20">
+                          <div className="w-full h-full rounded-2xl bg-gray-900/90 backdrop-blur-xl flex items-center justify-center">
+                            <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
+                              {item.symbol.slice(0, 2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-2xl font-black tracking-tight text-white mb-0.5">{item.symbol}</h4>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Research Report</span>
                         </div>
                       </div>
-                      <span className="text-xs text-gray-400 font-medium">
-                        {formatDateDDMMYYYY(item.date)}
-                      </span>
+
+                      <div className="flex flex-col items-end space-y-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{formatDateDDMMYYYY(item.date)}</span>
+                          {/* Action Buttons */}
+                          <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRerunResearch(item.symbol, index); }}
+                              disabled={isRerunning}
+                              className={`p-1.5 rounded-lg transition-all ${isRerunning ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-blue-500/20 text-gray-400 hover:text-blue-400'}`}
+                              title="Rerun research"
+                            >
+                              <RefreshCw className={`h-3.5 w-3.5 ${isRerunning ? 'animate-spin' : ''}`} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteResearch(index); }}
+                              className="p-1.5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all"
+                              title="Delete research"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={`px-3 py-1 rounded-lg border ${item.overallRating >= 70 ? 'bg-green-500/10 border-green-500/20 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.1)]' :
+                          item.overallRating >= 50 ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.1)]' :
+                            'bg-red-500/10 border-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
+                          }`}>
+                          <span className="text-[10px] font-black uppercase tracking-widest mr-2 opacity-70">Rating:</span>
+                          <span className="text-sm font-bold">{item.overallRating}/100</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {currentPrice && (
-                        <div className="glass-item px-3 py-1.5 flex items-center space-x-2">
-                          <span className="text-xs text-gray-400 font-medium">Current:</span>
-                          <span className="text-white font-bold">{currentPrice.startsWith('$') ? currentPrice : `$${currentPrice}`}</span>
+                    {/* Metrics Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
+                      {/* Current Price Box */}
+                      <div className="bg-[#0f172a]/80 rounded-xl p-3 border border-white/5 shadow-inner">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Current</div>
+                        <div className="text-xl font-bold text-white">
+                          {currentPrice ? (currentPrice.startsWith('$') ? currentPrice : `$${currentPrice}`) : 'N/A'}
                         </div>
-                      )}
-                      {targetPrice && (
-                        <div className="bg-blue-900/40 border border-blue-700/50 rounded-lg px-3 py-1.5 flex items-center space-x-2">
-                          <span className="text-xs text-blue-300 font-medium">Target:</span>
-                          <span className="text-blue-400 font-bold">{targetPrice.startsWith('$') ? targetPrice : `$${targetPrice}`}</span>
+                      </div>
+
+                      {/* Target Price Box */}
+                      <div className="bg-[#1e293b]/50 rounded-xl p-3 border border-blue-500/10 shadow-inner group-hover:border-blue-500/20 transition-colors">
+                        <div className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mb-1">Target</div>
+                        <div className="text-xl font-bold text-blue-100">
+                          {targetPrice ? (targetPrice.startsWith('$') ? targetPrice : `$${targetPrice}`) : 'N/A'}
                         </div>
-                      )}
-                      {upsidePercent !== null && (
-                        <div className={`rounded-lg px-3 py-1.5 font-bold text-sm ${parseFloat(upsidePercent) >= 0
-                            ? 'bg-green-900/40 border border-green-700/50 text-green-400'
-                            : 'bg-red-900/40 border border-red-700/50 text-red-400'
+                      </div>
+
+                      {/* Potential Box */}
+                      <div className={`rounded-xl p-3 border shadow-inner transition-colors ${parseFloat(upsidePercent) >= 0
+                        ? 'bg-green-900/10 border-green-500/10 group-hover:border-green-500/20'
+                        : 'bg-red-900/10 border-red-500/10 group-hover:border-red-500/20'
+                        }`}>
+                        <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${parseFloat(upsidePercent) >= 0 ? 'text-green-400/70' : 'text-red-400/70'
+                          }`}>Potential</div>
+                        <div className={`text-xl font-bold ${parseFloat(upsidePercent) >= 0 ? 'text-green-100' : 'text-red-100'
                           }`}>
-                          {parseFloat(upsidePercent) >= 0 ? '+' : ''}{upsidePercent}%
+                          {upsidePercent !== null ? (
+                            <>
+                              {parseFloat(upsidePercent) >= 0 ? '+' : ''}{upsidePercent}%
+                            </>
+                          ) : 'N/A'}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -418,6 +548,15 @@ function Dashboard({ researchData, tradeData, setTradeData, settings }) {
                     <p className="text-sm text-gray-400">
                       {formatDateDDMMYYYY(item.timestamp)}
                     </p>
+                    <div className="flex items-center space-x-3 mt-1 text-xs font-medium">
+                      <span className="text-gray-300">
+                        Current: <span className="text-white">${(item.currentMarketPrice || item.stockPrice)?.toFixed(2) || 'N/A'}</span>
+                      </span>
+                      <span className="text-gray-600">|</span>
+                      <span className="text-gray-300">
+                        Strike: <span className="text-white">${item.strikePrice?.toFixed(2) || 'N/A'}</span>
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="text-right">

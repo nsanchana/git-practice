@@ -31,12 +31,15 @@ export default async function handler(req, res) {
     const genAI = new GoogleGenerativeAI(apiKey)
 
     // Build context from company data
-    let systemPrompt = `You are a helpful financial analyst assistant specializing in equity research and options trading strategies. You provide clear, actionable insights based on company analysis data.`
+    let systemPrompt = `You are a helpful financial analyst assistant specializing in equity research and options trading strategies. 
+You provide clear, actionable insights. Use the provided analysis data as your primary context, but feel free to supplement with your general knowledge of the markets, company history, and financial concepts to answer any questions the user may have.
+
+If the user asks a question not covered by the data, use your training data to provide the best possible answer while noting if it's based on general knowledge rather than the specific recent analysis.`
 
     if (companyData) {
       systemPrompt += `
 
-You are discussing ${companyData.symbol}. Here is the analysis data you have access to:
+You are currently discussing ${companyData.symbol}. Here is the most recent analysis data for context:
 
 Company: ${companyData.symbol}
 Overall Rating: ${companyData.overallRating}/100
@@ -66,7 +69,7 @@ ${companyData.optionsData?.analysis || 'Not available'}
 Recent Developments:
 ${companyData.recentDevelopments?.analysis || 'Not available'}
 
-Use this information to answer questions about ${companyData.symbol}. Be specific, reference the analysis data when relevant, and provide actionable insights for options trading strategies when appropriate. Keep responses concise but informative.`
+Always prioritize providing value to the trader. If they ask about recent price drops (like in the last 2 days), use your knowledge of recent market events or suggest likely causes if specific data isn't in the context.`
     }
 
     const model = genAI.getGenerativeModel({
@@ -87,6 +90,14 @@ Use this information to answer questions about ${companyData.symbol}. Be specifi
             parts: [{ text: msg.content }]
           })
         }
+      })
+    }
+
+    // validate history: first message must be 'user'
+    if (history.length > 0 && history[0].role === 'model') {
+      history.unshift({
+        role: 'user',
+        parts: [{ text: 'Please analyze this company based on the provided data.' }]
       })
     }
 

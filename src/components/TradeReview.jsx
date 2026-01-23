@@ -24,6 +24,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
   const [priceError, setPriceError] = useState('')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState('all') // 'all', 'planned', 'executed', 'expired'
 
   // Chat state
   const [chatOpen, setChatOpen] = useState(false)
@@ -1028,115 +1029,152 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
               <span>Update Prices</span>
             </button>
           </div>
+
+          {/* Filter Buttons */}
+          <div className="flex space-x-2 mb-4">
+            {['all', 'planned', 'executed', 'expired'].map(filter => (
+              <button
+                key={filter}
+                onClick={() => setHistoryFilter(filter)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all ${historyFilter === filter
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-4">
-            {tradeData.slice(0, 10).map((trade, index) => {
-              const displayPrice = trade.currentMarketPrice || trade.stockPrice
-              const priceDiff = displayPrice - trade.strikePrice
+            {tradeData
+              .filter(trade => {
+                const daysLeft = Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))
+                const isExpired = daysLeft < 0
 
-              return (
-                <div key={index} className={`p-4 rounded-lg ${trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
-                  trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
-                    'bg-gray-700'
-                  }`}>
-                  {/* Top Row: Symbol, Type, and Status */}
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold text-lg">
-                        {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
-                      </h4>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {trade.status === 'executed' && (
-                          <span className="text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
-                            EXECUTED
+                if (historyFilter === 'all') return true
+                if (historyFilter === 'expired') return isExpired
+                if (historyFilter === 'executed') return trade.status === 'executed' && !isExpired
+                if (historyFilter === 'planned') return (trade.status === 'planned' || !trade.status) && !isExpired
+                return true
+              })
+              .slice(0, 10).map((trade, index) => {
+                const displayPrice = trade.currentMarketPrice || trade.stockPrice
+                const priceDiff = displayPrice - trade.strikePrice
+                const daysLeft = Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))
+                const isExpired = daysLeft < 0
+
+                return (
+                  <div key={index} className={`p-4 rounded-lg transition-all ${isExpired ? 'bg-gray-800/40 border border-gray-800 opacity-60 grayscale hover:grayscale-0 hover:opacity-100' :
+                    trade.status === 'executed' ? 'bg-green-900/20 border border-green-700/30' :
+                      trade.status === 'planned' ? 'bg-blue-900/20 border border-blue-700/30' :
+                        'bg-gray-700'
+                    }`}>
+                    {/* Top Row: Symbol, Type, and Status */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-semibold text-lg">
+                          {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
+                        </h4>
+                        <div className="flex items-center space-x-2 mt-1">
+                          {isExpired && (
+                            <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded border border-gray-600">
+                              EXPIRED
+                            </span>
+                          )}
+                          {trade.status === 'executed' && !isExpired && (
+                            <span className="text-xs px-2 py-0.5 bg-green-600 text-green-100 rounded">
+                              EXECUTED
+                            </span>
+                          )}
+                          {trade.status === 'planned' && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
+                              PLANNED
+                            </span>
+                          )}
+                          {!trade.status && (
+                            <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
+                              RESEARCH
+                            </span>
+                          )}
+                          <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
+                            {trade.recommendation.action}
                           </span>
-                        )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         {trade.status === 'planned' && (
-                          <span className="text-xs px-2 py-0.5 bg-blue-600 text-blue-100 rounded">
-                            PLANNED
-                          </span>
+                          <>
+                            <button
+                              onClick={() => handleEditTrade(trade)}
+                              className="p-2 hover:bg-blue-900/50 rounded-lg transition-colors"
+                              title="Edit planned trade"
+                            >
+                              <Edit className="h-4 w-4 text-blue-400" />
+                            </button>
+                            <button
+                              onClick={() => handleConvertToExecuted(trade)}
+                              className="p-2 hover:bg-green-900/50 rounded-lg transition-colors"
+                              title="Convert to executed trade"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-400" />
+                            </button>
+                          </>
                         )}
-                        {!trade.status && (
-                          <span className="text-xs px-2 py-0.5 bg-gray-600 text-gray-300 rounded">
-                            RESEARCH
-                          </span>
+                        {(trade.status === 'planned' || trade.status === 'executed') && (
+                          <button
+                            onClick={() => handleDeleteTrade(trade.id)}
+                            className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
+                            title="Delete trade"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                          </button>
                         )}
-                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
-                          {trade.recommendation.action}
-                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {trade.status === 'planned' && (
-                        <>
-                          <button
-                            onClick={() => handleEditTrade(trade)}
-                            className="p-2 hover:bg-blue-900/50 rounded-lg transition-colors"
-                            title="Edit planned trade"
-                          >
-                            <Edit className="h-4 w-4 text-blue-400" />
-                          </button>
-                          <button
-                            onClick={() => handleConvertToExecuted(trade)}
-                            className="p-2 hover:bg-green-900/50 rounded-lg transition-colors"
-                            title="Convert to executed trade"
-                          >
-                            <CheckCircle className="h-4 w-4 text-green-400" />
-                          </button>
-                        </>
-                      )}
-                      {(trade.status === 'planned' || trade.status === 'executed') && (
-                        <button
-                          onClick={() => handleDeleteTrade(trade.id)}
-                          className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
-                          title="Delete trade"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Trade Details Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <div className="glass-item">
-                      <div className="text-xs text-gray-400 mb-1">Stock Price</div>
-                      <div className="text-lg font-bold text-white">
-                        ${displayPrice?.toFixed(2) || 'N/A'}
-                        {trade.currentMarketPrice && (
-                          <span className="text-[10px] text-blue-400 ml-1 font-normal">(Live)</span>
-                        )}
+                    {/* Trade Details Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <div className="glass-item">
+                        <div className="text-xs text-gray-400 mb-1">Stock Price</div>
+                        <div className="text-lg font-bold text-white">
+                          ${displayPrice?.toFixed(2) || 'N/A'}
+                          {trade.currentMarketPrice && (
+                            <span className="text-[10px] text-blue-400 ml-1 font-normal">(Live)</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="glass-item">
-                      <div className="text-xs text-gray-400 mb-1">Strike Price</div>
-                      <div className="text-lg font-bold text-white">${trade.strikePrice?.toFixed(2)}</div>
-                    </div>
-                    <div className="glass-item">
-                      <div className="text-xs text-gray-400 mb-1">Variance</div>
-                      <div className={`text-lg font-bold ${priceDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${priceDiff.toFixed(2)}
-                        <span className="text-xs ml-1 opacity-70">
-                          ({((priceDiff / trade.strikePrice) * 100).toFixed(1)}%)
-                        </span>
+                      <div className="glass-item">
+                        <div className="text-xs text-gray-400 mb-1">Strike Price</div>
+                        <div className="text-lg font-bold text-white">${trade.strikePrice?.toFixed(2)}</div>
                       </div>
-                    </div>
-                    <div className="glass-item">
-                      <div className="text-xs text-gray-400 mb-1">Premium</div>
-                      <div className="text-lg font-bold text-emerald-400">${trade.premium?.toFixed(2)}</div>
-                    </div>
-                    <div className="glass-item">
-                      <div className="text-xs text-gray-400 mb-1">Days Left</div>
-                      <div className="text-lg font-bold text-blue-400">
-                        {Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))}d
+                      <div className="glass-item">
+                        <div className="text-xs text-gray-400 mb-1">Variance</div>
+                        <div className={`text-lg font-bold ${priceDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ${priceDiff.toFixed(2)}
+                          <span className="text-xs ml-1 opacity-70">
+                            ({((priceDiff / trade.strikePrice) * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+                      </div>
+                      <div className="glass-item">
+                        <div className="text-xs text-gray-400 mb-1">Premium</div>
+                        <div className="text-lg font-bold text-emerald-400">${trade.premium?.toFixed(2)}</div>
+                      </div>
+                      <div className="glass-item">
+                        <div className="text-xs text-gray-400 mb-1">Days Left</div>
+                        <div className="text-lg font-bold text-blue-400">
+                          {Math.ceil((new Date(trade.expirationDate) - new Date()) / (1000 * 60 * 60 * 24))}d
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
           </div>
         </div>
-      )}
+      )
+      }
     </div >
   )
 }

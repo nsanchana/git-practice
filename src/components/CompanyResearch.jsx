@@ -53,15 +53,19 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
     }
   }, [chatMessages])
 
-  // Reset chat when company changes
+  // Reset chat when company changes or load saved chat
   useEffect(() => {
     if (companyData) {
-      setChatMessages([{
-        role: 'assistant',
-        content: `I've analyzed ${companyData.symbol} for you. Feel free to ask me any questions about the company's market position, business model, financials, growth strategy, or options trading opportunities.`
-      }])
+      if (companyData.chatHistory && companyData.chatHistory.length > 0) {
+        setChatMessages(companyData.chatHistory)
+      } else {
+        setChatMessages([{
+          role: 'assistant',
+          content: `I've analyzed ${companyData.symbol} for you. Feel free to ask me any questions about the company's market position, business model, financials, growth strategy, or options trading opportunities.`
+        }])
+      }
     }
-  }, [companyData?.symbol])
+  }, [companyData?.symbol, companyData?.date])
 
   const handleSendMessage = async (e) => {
     e.preventDefault()
@@ -87,17 +91,34 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
         })
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Failed to get response')
+        throw new Error(data.details || data.error || 'Failed to get response')
       }
 
-      const data = await response.json()
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+      const assistantMessage = { role: 'assistant', content: data.response }
+      const finalMessages = [...newMessages, assistantMessage]
+      setChatMessages(finalMessages)
+
+      // If research is already saved, auto-update the chat history in storage
+      if (companyData?.saved) {
+        setCompanyData(prev => ({ ...prev, chatHistory: finalMessages }))
+
+        // Update researchData array as well
+        const researchIndex = researchData.findIndex(r => r.symbol === companyData.symbol && r.date === companyData.date)
+        if (researchIndex !== -1) {
+          const updatedResearchData = [...researchData]
+          updatedResearchData[researchIndex] = { ...updatedResearchData[researchIndex], chatHistory: finalMessages }
+          setResearchData(updatedResearchData)
+          saveToLocalStorage('researchData', updatedResearchData)
+        }
+      }
     } catch (err) {
       console.error('Chat error:', err)
       setChatMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.'
+        content: `Sorry, I encountered an error: ${err.message}. Please try again.`
       }])
     } finally {
       setChatLoading(false)
@@ -211,11 +232,24 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
   const handleSaveResearch = () => {
     if (!companyData) return
 
-    // Mark as saved
-    const savedResearch = { ...companyData, saved: true }
+    // Mark as saved and include current chat history
+    const savedResearch = {
+      ...companyData,
+      saved: true,
+      chatHistory: chatMessages
+    }
 
-    // Add to research data array
-    const updatedResearchData = [savedResearch, ...researchData]
+    // Check if we are updating an existing save or adding a new one
+    const existingIndex = researchData.findIndex(r => r.symbol === companyData.symbol && r.date === companyData.date)
+
+    let updatedResearchData
+    if (existingIndex !== -1) {
+      updatedResearchData = [...researchData]
+      updatedResearchData[existingIndex] = savedResearch
+    } else {
+      updatedResearchData = [savedResearch, ...researchData]
+    }
+
     setResearchData(updatedResearchData)
 
     // Persist to localStorage
@@ -225,7 +259,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
     setCompanyData(savedResearch)
 
     // Show success message
-    alert(`Research for ${companyData.symbol} saved successfully!`)
+    alert(`Research for ${companyData.symbol} saved successfully with chat history!`)
   }
 
   const handleViewResearch = (research) => {
@@ -370,9 +404,10 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
   }
 
   const getRatingColor = (rating) => {
-    if (rating >= 8) return 'text-green-400'
-    if (rating >= 6) return 'text-yellow-400'
-    if (rating >= 4) return 'text-orange-400'
+    const r = rating > 10 ? rating / 10 : rating
+    if (r >= 8) return 'text-green-400'
+    if (r >= 6) return 'text-yellow-400'
+    if (r >= 4) return 'text-orange-400'
     return 'text-red-400'
   }
 
@@ -447,6 +482,20 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
                         ${data.metrics.find(m => m.label === 'Current Price')?.value}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* Target Price Analysis - Moved Here */}
+                {data.detailedTechnical?.targetPriceAnalysis && (
+                  <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-4 mb-4 border border-blue-700/30">
+                    <h5 className="font-semibold text-blue-400 mb-2">{data.detailedTechnical.targetPriceAnalysis.title}</h5>
+                    {data.detailedTechnical.targetPriceAnalysis.targetPrice && (
+                      <div className="flex items-center mb-3">
+                        <span className="text-gray-400 text-sm mr-2">Analyst Target:</span>
+                        <span className="text-2xl font-bold text-blue-300">{data.detailedTechnical.targetPriceAnalysis.targetPrice}</span>
+                      </div>
+                    )}
+                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedTechnical.targetPriceAnalysis.content}</p>
                   </div>
                 )}
 
@@ -546,58 +595,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
                   </div>
                 )}
 
-                {/* Support & Resistance Levels */}
-                {data.detailedTechnical.supportResistance && (
-                  <div className="glass-card mb-3">
-                    <h5 className="font-semibold text-primary-400 mb-2">{data.detailedTechnical.supportResistance.title}</h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h6 className="text-green-400 font-medium mb-2">Support Levels</h6>
-                        {data.detailedTechnical.supportResistance.support?.length > 0 ? (
-                          <ul className="space-y-1">
-                            {data.detailedTechnical.supportResistance.support.map((level, i) => (
-                              <li key={i} className="text-sm text-gray-300 flex items-center">
-                                <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                                {level}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-400">No support levels identified</p>
-                        )}
-                      </div>
-                      <div>
-                        <h6 className="text-red-400 font-medium mb-2">Resistance Levels</h6>
-                        {data.detailedTechnical.supportResistance.resistance?.length > 0 ? (
-                          <ul className="space-y-1">
-                            {data.detailedTechnical.supportResistance.resistance.map((level, i) => (
-                              <li key={i} className="text-sm text-gray-300 flex items-center">
-                                <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
-                                {level}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-400">No resistance levels identified</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
-                {/* Target Price Analysis */}
-                {data.detailedTechnical.targetPriceAnalysis && (
-                  <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-lg p-4 mb-3 border border-blue-700/30">
-                    <h5 className="font-semibold text-blue-400 mb-2">{data.detailedTechnical.targetPriceAnalysis.title}</h5>
-                    {data.detailedTechnical.targetPriceAnalysis.targetPrice && (
-                      <div className="flex items-center mb-3">
-                        <span className="text-gray-400 text-sm mr-2">Analyst Target:</span>
-                        <span className="text-2xl font-bold text-blue-300">{data.detailedTechnical.targetPriceAnalysis.targetPrice}</span>
-                      </div>
-                    )}
-                    <p className="text-gray-300 text-sm leading-relaxed">{data.detailedTechnical.targetPriceAnalysis.content}</p>
-                  </div>
-                )}
 
                 {/* Options Strategy */}
                 {data.detailedTechnical.optionsStrategy && (
@@ -837,7 +835,7 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
             {chatOpen && (
               <div className="px-4 pb-4">
                 {/* Chat Messages */}
-                <div className="glass-card p-4 h-80 overflow-y-auto mb-4">
+                <div className="bg-gray-900/50 backdrop-blur-md rounded-xl border border-white/5 p-4 h-[500px] overflow-y-auto mb-4 pr-2 custom-scrollbar">
                   {chatMessages.map((msg, index) => (
                     <div
                       key={index}
@@ -937,10 +935,14 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
             {sortedResearchData.slice(0, 10).map((item) => {
               const itemKey = `${item.symbol}-${item.date}`
               // Extract current price and target price from technical analysis
-              const currentPrice = item.technicalAnalysis?.currentPrice ||
+              let currentPrice = item.technicalAnalysis?.currentPrice ||
                 item.technicalAnalysis?.metrics?.find(m => m.label === 'Current Price')?.value
-              const targetPrice = item.technicalAnalysis?.targetPrice ||
+              let targetPrice = item.technicalAnalysis?.targetPrice ||
                 item.technicalAnalysis?.metrics?.find(m => m.label === 'Target Price')?.value
+
+              // Sanitize prices (remove trailing commas/spaces)
+              if (currentPrice) currentPrice = currentPrice.replace(/,\s*$/, '').trim()
+              if (targetPrice) targetPrice = targetPrice.replace(/,\s*$/, '').trim()
 
               // Calculate upside percentage
               let upsidePercent = null
@@ -953,57 +955,93 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
               }
 
               return (
-                <div key={itemKey} className="glass-item cursor-pointer" onClick={() => handleViewResearch(item)}>
-                  {/* Single Row: Symbol, Price Boxes, Date, Rating, Actions */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                      <h4 className="font-semibold text-lg">{item.symbol}</h4>
-                      {currentPrice && (
-                        <div className="glass-item px-2 py-1 flex items-center space-x-1">
-                          <span className="text-xs text-gray-400">Current:</span>
-                          <span className="text-white font-medium">{currentPrice.startsWith('$') ? currentPrice : `$${currentPrice}`}</span>
+                <div key={itemKey} className="glass-item p-5 hover:bg-white/5 transition-all duration-300 border border-white/5 hover:border-white/10 group relative overflow-hidden cursor-pointer" onClick={() => handleViewResearch(item)}>
+                  {/* Background Glow Effect */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none transition-opacity opacity-50 group-hover:opacity-100"></div>
+
+                  {/* Header Row */}
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className="flex items-center space-x-4">
+                      {/* Gradient Initials Icon */}
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 p-[1px] shadow-lg shadow-blue-500/20">
+                        <div className="w-full h-full rounded-2xl bg-gray-900/90 backdrop-blur-xl flex items-center justify-center">
+                          <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
+                            {item.symbol.slice(0, 2)}
+                          </span>
                         </div>
-                      )}
-                      {targetPrice && (
-                        <div className="bg-blue-900/40 border border-blue-700/50 rounded px-2 py-1 flex items-center space-x-1">
-                          <span className="text-xs text-blue-300">Target:</span>
-                          <span className="text-blue-400 font-medium">{targetPrice.startsWith('$') ? targetPrice : `$${targetPrice}`}</span>
-                        </div>
-                      )}
-                      {upsidePercent !== null && (
-                        <div className={`rounded px-2 py-1 font-medium text-sm ${parseFloat(upsidePercent) >= 0 ? 'bg-green-900/40 border border-green-700/50 text-green-400' : 'bg-red-900/40 border border-red-700/50 text-red-400'}`}>
-                          {parseFloat(upsidePercent) >= 0 ? '+' : ''}{upsidePercent}%
-                        </div>
-                      )}
-                      <span className="text-sm text-gray-400">
-                        {formatDateDDMMYYYY(item.date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className={`text-lg font-bold ${getRatingColor(item.overallRating)}`}>
-                        {item.overallRating}/100
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRerunResearch(item.symbol)
-                        }}
-                        className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                        title="Rerun research"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const originalIndex = researchData.findIndex(r => r.symbol === item.symbol && r.date === item.date)
-                          handleDeleteResearch(originalIndex)
-                        }}
-                        className="p-2 hover:bg-red-900/50 rounded-lg transition-colors"
-                        title="Delete research"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-400" />
-                      </button>
+
+                      <div>
+                        <h4 className="text-2xl font-black tracking-tight text-white mb-0.5">{item.symbol}</h4>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Research Report</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end space-y-2">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{formatDateDDMMYYYY(item.date)}</span>
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRerunResearch(item.symbol); }}
+                            className="p-1.5 hover:bg-blue-500/20 text-gray-400 hover:text-blue-400 rounded-lg transition-all"
+                            title="Rerun research"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); const originalIndex = researchData.findIndex(r => r.symbol === item.symbol && r.date === item.date); handleDeleteResearch(originalIndex); }}
+                            className="p-1.5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all"
+                            title="Delete research"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className={`px-3 py-1 rounded-lg border ${item.overallRating >= 70 ? 'bg-green-500/10 border-green-500/20 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.1)]' :
+                        item.overallRating >= 50 ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.1)]' :
+                          'bg-red-500/10 border-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
+                        }`}>
+                        <span className="text-[10px] font-black uppercase tracking-widest mr-2 opacity-70">Rating:</span>
+                        <span className="text-sm font-bold">{item.overallRating}/100</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Metrics Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
+                    {/* Current Price Box */}
+                    <div className="bg-[#0f172a]/80 rounded-xl p-3 border border-white/5 shadow-inner">
+                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Current</div>
+                      <div className="text-xl font-bold text-white">
+                        {currentPrice ? (currentPrice.startsWith('$') ? currentPrice : `$${currentPrice}`) : 'N/A'}
+                      </div>
+                    </div>
+
+                    {/* Target Price Box */}
+                    <div className="bg-[#1e293b]/50 rounded-xl p-3 border border-blue-500/10 shadow-inner group-hover:border-blue-500/20 transition-colors">
+                      <div className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mb-1">Target</div>
+                      <div className="text-xl font-bold text-blue-100">
+                        {targetPrice ? (targetPrice.startsWith('$') ? targetPrice : `$${targetPrice}`) : 'N/A'}
+                      </div>
+                    </div>
+
+                    {/* Potential Box */}
+                    <div className={`rounded-xl p-3 border shadow-inner transition-colors ${parseFloat(upsidePercent) >= 0
+                      ? 'bg-green-900/10 border-green-500/10 group-hover:border-green-500/20'
+                      : 'bg-red-900/10 border-red-500/10 group-hover:border-red-500/20'
+                      }`}>
+                      <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${parseFloat(upsidePercent) >= 0 ? 'text-green-400/70' : 'text-red-400/70'
+                        }`}>Potential</div>
+                      <div className={`text-xl font-bold ${parseFloat(upsidePercent) >= 0 ? 'text-green-100' : 'text-red-100'
+                        }`}>
+                        {upsidePercent !== null ? (
+                          <>
+                            {parseFloat(upsidePercent) >= 0 ? '+' : ''}{upsidePercent}%
+                          </>
+                        ) : 'N/A'}
+                      </div>
                     </div>
                   </div>
                 </div>
