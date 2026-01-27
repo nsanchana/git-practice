@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Calculator, TrendingUp, AlertTriangle, CheckCircle, DollarSign, Save, Trash2, Edit, MessageCircle, Send, Bot, User, ChevronDown, ChevronUp, Loader, RefreshCw } from 'lucide-react'
 import { calculateOptionGreeks, assessTradeRisk, generateTradeRecommendation } from '../utils/optionsCalculations'
-import { saveToLocalStorage } from '../utils/storage'
+import { saveToLocalStorage, STORAGE_KEYS } from '../utils/storage'
 
 // Helper function to format dates as DD/MM/YYYY
 const formatDateDDMMYYYY = (dateString) => {
@@ -159,7 +159,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
     })
 
     setTradeData(updatedTradeData)
-    saveToLocalStorage('tradeData', updatedTradeData)
+    saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, updatedTradeData)
     setLoading(false)
     alert('Stock prices updated successfully!')
   }
@@ -203,7 +203,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
         if (JSON.stringify(updatedTradeData) !== JSON.stringify(tradeData)) {
           setTradeData(updatedTradeData)
-          saveToLocalStorage('tradeData', updatedTradeData)
+          saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, updatedTradeData)
         }
       }
     }
@@ -276,7 +276,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
     // Add to trade data
     setTradeData(prev => [quickTrade, ...prev])
-    saveToLocalStorage('tradeData', [quickTrade, ...tradeData])
+    saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, [quickTrade, ...tradeData])
 
     // Show success message
     const message = tradeStatus === 'executed'
@@ -452,7 +452,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
     setTradeData(updatedTradeData)
 
     // Persist to localStorage
-    saveToLocalStorage('tradeData', updatedTradeData)
+    saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, updatedTradeData)
 
     // Show success message
     const message = tradeStatus === 'executed'
@@ -466,7 +466,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
 
     const updatedTradeData = tradeData.filter(trade => trade.id !== tradeId)
     setTradeData(updatedTradeData)
-    saveToLocalStorage('tradeData', updatedTradeData)
+    saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, updatedTradeData)
 
     // If we deleted the current analysis, clear it
     if (analysis && analysis.id === tradeId) {
@@ -518,7 +518,7 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
       t.id === trade.id ? executedTrade : t
     )
     setTradeData(updatedTradeData)
-    saveToLocalStorage('tradeData', updatedTradeData)
+    saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, updatedTradeData)
 
     // If this is the current analysis, update it
     if (analysis && analysis.id === trade.id) {

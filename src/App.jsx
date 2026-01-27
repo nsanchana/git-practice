@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard'
 import StockPortfolio from './components/StockPortfolio'
 import SettingsPanel from './components/SettingsPanel'
 import Login from './components/Login'
-import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from './utils/storage'
+import { saveToLocalStorage, loadFromLocalStorage, exportToCSV, STORAGE_KEYS } from './utils/storage'
 import { API_BASE_URL } from './config'
 
 // Helper function to format time as HH:MM:SS with DD/MM/YYYY
@@ -56,19 +56,19 @@ function App() {
       // Always update local state with cloud data to ensure sync (even if empty)
       if (cloudData.researchData !== undefined) {
         setResearchData(cloudData.researchData)
-        saveToLocalStorage('researchData', cloudData.researchData)
+        saveToLocalStorage(STORAGE_KEYS.RESEARCH_DATA, cloudData.researchData)
       }
       if (cloudData.tradeData !== undefined) {
         setTradeData(cloudData.tradeData)
-        saveToLocalStorage('tradeData', cloudData.tradeData)
+        saveToLocalStorage(STORAGE_KEYS.TRADE_DATA, cloudData.tradeData)
       }
       if (cloudData.settings) {
         setSettings(cloudData.settings)
-        saveToLocalStorage('settings', cloudData.settings)
+        saveToLocalStorage(STORAGE_KEYS.PORTFOLIO_SETTINGS, cloudData.settings)
       }
       if (cloudData.stockData !== undefined && Array.isArray(cloudData.stockData)) {
         setStockData(cloudData.stockData)
-        saveToLocalStorage('stockData', cloudData.stockData)
+        saveToLocalStorage(STORAGE_KEYS.STOCK_DATA, cloudData.stockData)
       }
 
       setLastCloudSync(cloudData.lastSynced ? new Date(cloudData.lastSynced) : null)
@@ -143,14 +143,13 @@ function App() {
     if (!user) return
 
     // First load from localStorage for immediate display
-    const savedResearch = loadFromLocalStorage('researchData')
-    const savedTrades = loadFromLocalStorage('tradeData')
-    const savedSettings = loadFromLocalStorage('settings')
-
+    const savedResearch = loadFromLocalStorage(STORAGE_KEYS.RESEARCH_DATA)
     if (savedResearch) setResearchData(savedResearch)
+    const savedTrades = loadFromLocalStorage(STORAGE_KEYS.TRADE_DATA)
     if (savedTrades) setTradeData(savedTrades)
+    const savedSettings = loadFromLocalStorage(STORAGE_KEYS.PORTFOLIO_SETTINGS)
     if (savedSettings) setSettings(savedSettings)
-    const savedStocks = loadFromLocalStorage('stockData')
+    const savedStocks = loadFromLocalStorage(STORAGE_KEYS.STOCK_DATA)
     if (savedStocks) setStockData(savedStocks)
 
     // Then sync from cloud (will override local data if cloud has data)
@@ -421,7 +420,7 @@ function App() {
             stockData={stockData}
             onUpdate={(newData) => {
               setStockData(newData)
-              saveToLocalStorage('stockData', newData)
+              saveToLocalStorage(STORAGE_KEYS.STOCK_DATA, newData)
             }}
           />
         )}
