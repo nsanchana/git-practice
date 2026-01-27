@@ -57,67 +57,55 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
   const glowColor = isMaxAchieved ? 'rgba(16, 185, 129, 0.3)' : isMinAchieved ? 'rgba(234, 179, 8, 0.2)' : 'rgba(239, 68, 68, 0.15)'
 
   return (
-    <div className="glass-card group relative overflow-hidden flex flex-col h-full">
+    <div className="glass-card group relative overflow-hidden flex flex-col h-full !p-6">
       {/* Background glow pulse */}
       <div
         className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[80px] transition-all duration-700 group-hover:blur-[60px]"
         style={{ backgroundColor: glowColor }}
       ></div>
 
-      {/* Header Section - Full Width */}
-      <div className="relative z-10 mb-8 border-b border-white/5 pb-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className={`p-2.5 rounded-xl border border-gray-700/50 bg-gray-900/50 ${isMaxAchieved ? 'text-emerald-400' : 'text-blue-400'}`}>
-            {Icon && <Icon className="h-6 w-6" />}
-          </div>
-          <h3 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent uppercase">
-            {label} Earnings
-          </h3>
+      {/* Header Section - Condensed */}
+      <div className="relative z-10 mb-4 border-b border-white/5 pb-4">
+        <div className="flex items-center space-x-2 mb-2">
+          <Icon className={`h-5 w-5 ${isMaxAchieved ? 'text-emerald-400' : 'text-blue-400'}`} />
+          <h3 className="text-lg font-black tracking-tight text-white uppercase">{label} Earnings</h3>
         </div>
-
-        <div className="flex flex-col">
-          <span className="text-[10px] text-gray-500 font-black uppercase tracking-[0.3em] mb-1">Target Capital Goal</span>
-          <span className="text-3xl font-black text-emerald-400 font-mono tracking-tighter">
+        <div className="flex items-baseline space-x-2">
+          <span className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Target Goal:</span>
+          <span className="text-xl font-black text-emerald-400 font-mono tracking-tight">
             ${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </span>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col justify-between relative z-10">
-        {/* Current Position Row - Fixed Height for alignment */}
-        <div className="flex justify-between items-start mb-10 h-24">
-          <div className="flex flex-col justify-end h-full">
-            <p className="text-[11px] text-gray-500 uppercase font-black tracking-[0.2em] mb-2">Current Position</p>
-            <div className="flex flex-col">
-              <span className="text-5xl font-black text-white font-mono leading-none tracking-tighter">${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              <div className="h-8 mt-3">
-                {projection ? (
-                  <div className="flex items-center space-x-3">
-                    <span className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em] bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">Projected Year-End</span>
-                    <span className="text-xl font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                  </div>
-                ) : (
-                  <div className="opacity-0">Placeholder</div>
-                )}
+        {/* Current Position Row - Synchronized Alignment */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em] mb-1">Current Position</p>
+            <span className="text-4xl font-black text-white font-mono leading-none tracking-tighter">${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            {projection && (
+              <div className="flex items-center space-x-2 mt-2">
+                <span className="text-[8px] text-blue-400 font-black uppercase tracking-[0.1em] border border-blue-500/30 px-1.5 py-0.5 rounded bg-blue-500/5">Proj.</span>
+                <span className="text-base font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </div>
-            </div>
+            )}
           </div>
-          <div className="text-right flex flex-col justify-end h-full">
-            <span className={`text-4xl font-black font-mono leading-none tracking-tighter ${isMinAchieved ? 'text-emerald-400' : 'text-yellow-400'}`}>
+          <div className="text-right">
+            <span className={`text-3xl font-black font-mono leading-none tracking-tighter ${isMinAchieved ? 'text-emerald-400' : 'text-yellow-400'}`}>
               {((current / max) * 100).toFixed(0)}%
             </span>
-            <p className="text-[11px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-2">of target</p>
+            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">of target</p>
           </div>
         </div>
 
-        {/* Progress System - Standardized Alignment */}
-        <div className="relative pt-16 pb-12 mt-4">
-          {/* Main Bar Track - Larger */}
-          <div className="w-full bg-gray-900 border-x border-gray-800 rounded-full h-8 overflow-hidden border border-gray-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-            {/* Projection Ghost Bar */}
+        {/* Progress System - Condensed & Staggered Markers */}
+        <div className="relative pt-10 pb-8 mt-2">
+          {/* Main Bar Track */}
+          <div className="w-full bg-gray-900 rounded-full h-6 overflow-hidden border border-gray-700/50">
             {projectionPos && projectionPos > currentPos && (
               <div
-                className="absolute h-8 rounded-full transition-all duration-1000 ease-out bg-blue-500/20 border-r border-blue-400/50 z-0"
+                className="absolute h-6 rounded-full transition-all duration-1000 ease-out bg-blue-500/20 border-r border-blue-400/50 z-0"
                 style={{
                   left: `${currentPos}%`,
                   width: `${Math.min(projectionPos, 100) - currentPos}%`,
@@ -125,76 +113,75 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
                 }}
               ></div>
             )}
-
-            {/* Actual Progress Bar */}
             <div
-              className={`h-full rounded-full transition-all duration-1000 ease-out relative z-10 ${isMaxAchieved ? 'bg-gradient-to-r from-emerald-600 via-cyan-500 to-blue-500' :
-                isMinAchieved ? 'bg-gradient-to-r from-yellow-600 via-emerald-500 to-emerald-400' :
-                  'bg-gradient-to-r from-red-600 via-orange-500 to-yellow-500'
+              className={`h-full rounded-full transition-all duration-1000 ease-out relative z-10 ${isMaxAchieved ? 'bg-gradient-to-r from-emerald-600 to-blue-500' :
+                isMinAchieved ? 'bg-gradient-to-r from-yellow-600 to-emerald-400' :
+                  'bg-gradient-to-r from-red-600 to-yellow-500'
                 }`}
-              style={{ width: `${Math.min(currentPos, 100)}%`, boxShadow: `0 0 30px ${glowColor.replace('0.3', '0.5')}` }}
+              style={{ width: `${Math.min(currentPos, 100)}%`, boxShadow: `0 0 20px ${glowColor.replace('0.3', '0.4')}` }}
             >
-              <div className="absolute inset-x-0 top-0 h-1/2 bg-white/10 rounded-t-full"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-white/5 rounded-t-full"></div>
             </div>
           </div>
 
-          {/* Threshold Markers - Massive Scale */}
-          <div className="absolute top-16 h-12 w-[2px] bg-yellow-400/40 z-20" style={{ left: `${minPos}%` }}>
-            <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
-              <span className="text-xs text-yellow-500 font-black uppercase tracking-widest font-mono mb-2 bg-yellow-400/5 px-2 py-0.5 rounded border border-yellow-400/10">MIN: ${min.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              <div className={`w-4 h-4 rounded-full border-4 border-gray-900 transition-all ${isMinAchieved ? 'bg-yellow-400 shadow-[0_0_12px_#facc15]' : 'bg-gray-700'}`}></div>
+          {/* Staggered Threshold Markers to avoid overlap */}
+          {/* Min Marker - Lower */}
+          <div className="absolute top-10 h-8 w-[2px] bg-yellow-400/40 z-20" style={{ left: `${minPos}%` }}>
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <span className="text-[8px] text-yellow-500/80 font-black uppercase tracking-tighter font-mono bg-black/40 px-1 rounded-sm">Min: ${min.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 ${isMinAchieved ? 'bg-yellow-400' : 'bg-gray-700'}`}></div>
             </div>
           </div>
 
-          <div className="absolute top-16 h-12 w-[2px] bg-emerald-400/40 z-20" style={{ left: `${maxPos}%` }}>
-            <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
-              <span className="text-xs text-emerald-400 font-black uppercase tracking-widest font-mono mb-2 bg-emerald-400/5 px-2 py-0.5 rounded border border-emerald-400/10">GOAL: ${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              <div className={`w-4 h-4 rounded-full border-4 border-gray-900 transition-all ${isMaxAchieved ? 'bg-emerald-400 shadow-[0_0_12px_#10b981]' : 'bg-gray-700'}`}></div>
+          {/* Goal Marker - Higher up to avoid overlap */}
+          <div className="absolute top-10 h-12 w-[2px] bg-emerald-400/40 z-30" style={{ left: `${maxPos}%` }}>
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <span className="text-[8px] text-emerald-400 font-black uppercase tracking-tighter font-mono bg-emerald-400/10 px-1 rounded-sm border border-emerald-500/20">Goal: ${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 ${isMaxAchieved ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-gray-700'}`}></div>
             </div>
           </div>
 
-          {/* Projection Marker */}
+          {/* Run-Rate Marker - Positioned higher to clear bottom message */}
           {projectionPos && (
-            <div className="absolute top-16 h-20 w-[2px] bg-blue-400/50 z-20 border-l border-blue-400/30" style={{ left: `${projectionPos}%` }}>
-              <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                <div className={`w-5 h-5 rounded-full border-[6px] border-gray-900 transition-all bg-blue-400 shadow-[0_0_15px_#60a5fa]`}></div>
-                <span className="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] whitespace-nowrap bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20 mt-2">Annual Run-Rate</span>
+            <div className="absolute bottom-8 h-10 w-[2px] bg-blue-400/50 z-20 border-l border-blue-400/30" style={{ left: `${projectionPos}%` }}>
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <div className={`w-3 h-3 rounded-full border-2 border-gray-900 bg-blue-400 shadow-[0_0_8px_#60a5fa]`}></div>
+                <span className="text-[8px] text-blue-400 font-black uppercase tracking-widest whitespace-nowrap bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 mt-1">Run-Rate</span>
               </div>
             </div>
           )}
 
-          {/* Surplus Badge */}
+          {/* Overperformance Badge - Repositioned to prevent clipping */}
           {current > max && (
-            <div className="absolute -right-4 top-16 h-12 flex items-center" style={{ left: `calc(${Math.min(currentPos, 100)}% + 20px)` }}>
-              <span className="text-xs font-black text-cyan-400 bg-cyan-400/10 px-3 py-1.5 rounded-xl border border-cyan-400/30 animate-pulse uppercase tracking-[0.2em] shadow-lg shadow-cyan-500/10">
-                OVERPERFORMANCE: +{((current / max - 1) * 100).toFixed(0)}%
+            <div className="absolute left-0 -bottom-2 w-full flex justify-center">
+              <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/30 animate-pulse uppercase tracking-[0.2em]">
+                Surplus: +{((current / max - 1) * 100).toFixed(0)}%
               </span>
             </div>
           )}
         </div>
 
-        {/* Status Messaging - Standardized Baseline */}
-        <div className="mt-8">
+        {/* Improved, More Encouraging Status Messaging */}
+        <div className="mt-4">
           {isMaxAchieved ? (
-            <div className="flex items-center space-x-4 text-emerald-400 bg-emerald-950/40 p-5 rounded-2xl border border-emerald-500/30 text-[13px] font-black animate-float shadow-lg shadow-emerald-500/5">
-              <CheckCircle className="h-6 w-6 shrink-0" />
-              <span className="uppercase tracking-[0.15em]">System Directive: Goal Exceeded. Extreme Efficiency 🚀</span>
+            <div className="flex items-center space-x-3 text-emerald-400 bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/20 text-[11px] font-black animate-float">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              <span className="uppercase tracking-widest">Incredible performance! Goal smashed 🚀</span>
             </div>
           ) : isMinAchieved ? (
-            <div className="flex items-center space-x-4 text-green-400 bg-green-950/40 p-5 rounded-2xl border border-green-500/30 text-[13px] font-black shadow-lg shadow-green-500/5">
-              <CheckCircle className="h-6 w-6 shrink-0" />
-              <span className="uppercase tracking-[0.15em]">System Directive: Stability Protocol Secured 🎉</span>
+            <div className="flex items-center space-x-3 text-green-400 bg-green-950/30 p-3 rounded-xl border border-green-500/20 text-[11px] font-black">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              <span className="uppercase tracking-widest">Minimum floor reached. Great job! 🎉</span>
             </div>
           ) : projection >= max ? (
-            <div className="flex items-center space-x-4 text-blue-400 bg-blue-950/40 p-5 rounded-2xl border border-blue-500/30 text-[13px] font-black shadow-lg shadow-blue-500/5">
-              <TrendingUp className="h-6 w-6 shrink-0" />
-              <span className="uppercase tracking-[0.15em]">System Directive: Trending Toward Objectives 📈</span>
+            <div className="flex items-center space-x-3 text-blue-400 bg-blue-950/30 p-3 rounded-xl border border-blue-500/20 text-[11px] font-black">
+              <TrendingUp className="h-4 w-4 shrink-0" />
+              <span className="uppercase tracking-widest">On track to hit your targets 📈</span>
             </div>
           ) : current > 0 && (
-            <div className="flex items-center space-x-4 text-yellow-400 bg-yellow-950/30 p-5 rounded-2xl border border-yellow-500/30 text-[13px] font-black shadow-lg shadow-yellow-500/5">
-              <AlertCircle className="h-6 w-6 shrink-0" />
-              <span className="uppercase tracking-[0.15em]">System Directive: Additional Volume Required</span>
+            <div className="flex items-center space-x-3 text-yellow-400 bg-yellow-950/20 p-3 rounded-xl border border-yellow-500/20 text-[11px] font-black">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span className="uppercase tracking-widest">Keep pushing to reach that goal</span>
             </div>
           )}
         </div>
