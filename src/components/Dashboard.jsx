@@ -80,22 +80,24 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
 
       <div className="flex-1 flex flex-col justify-between relative z-10">
         {/* Current Position Row - Synchronized Alignment */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex flex-col">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em] mb-1">Current Position</p>
-            <span className="text-4xl font-black text-white font-mono leading-none tracking-tighter">${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-            {projection && (
-              <div className="flex items-center space-x-2 mt-2">
-                <span className="text-[8px] text-blue-400 font-black uppercase tracking-[0.1em] border border-blue-500/30 px-1.5 py-0.5 rounded bg-blue-500/5">Proj.</span>
-                <span className="text-base font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
+        <div className="flex justify-between items-start mb-6 h-20">
+          <div className="flex flex-col justify-between h-full">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em]">Current Position</p>
+            <div className="flex flex-col">
+              <span className="text-4xl font-black text-white font-mono leading-none tracking-tighter">${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              {projection && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <span className="text-[8px] text-blue-400 font-black uppercase tracking-[0.1em] border border-blue-500/30 px-1.5 py-0.5 rounded bg-blue-500/5">Proj.</span>
+                  <span className="text-sm font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="text-right">
-            <span className={`text-3xl font-black font-mono leading-none tracking-tighter ${isMinAchieved ? 'text-emerald-400' : 'text-yellow-400'}`}>
+          <div className="text-right flex flex-col justify-between h-full">
+            <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">of target</p>
+            <span className={`text-4xl font-black font-mono leading-none tracking-tighter ${isMinAchieved ? 'text-emerald-400' : 'text-yellow-400'}`}>
               {((current / max) * 100).toFixed(0)}%
             </span>
-            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.2em] mt-1">of target</p>
           </div>
         </div>
 
@@ -124,20 +126,22 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
             </div>
           </div>
 
-          {/* Staggered Threshold Markers to avoid overlap */}
+          {/* Staggered Threshold Markers - Enhanced Visibility */}
           {/* Min Marker - Lower */}
           <div className="absolute top-10 h-8 w-[2px] bg-yellow-400/40 z-20" style={{ left: `${minPos}%` }}>
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
-              <span className="text-[8px] text-yellow-500/80 font-black uppercase tracking-tighter font-mono bg-black/40 px-1 rounded-sm">Min: ${min.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 ${isMinAchieved ? 'bg-yellow-400' : 'bg-gray-700'}`}></div>
+            <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <span className="text-[10px] text-yellow-500 font-black uppercase tracking-tighter leading-none mb-1">MIN</span>
+              <span className="text-xs text-white font-black font-mono bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/20 shadow-lg">${min.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 mt-2 ${isMinAchieved ? 'bg-yellow-400' : 'bg-gray-700'}`}></div>
             </div>
           </div>
 
           {/* Goal Marker - Higher up to avoid overlap */}
           <div className="absolute top-10 h-12 w-[2px] bg-emerald-400/40 z-30" style={{ left: `${maxPos}%` }}>
-            <div className="absolute -top-16 left-1/2 -translate-x-1/2 flex flex-col items-center">
-              <span className="text-[8px] text-emerald-400 font-black uppercase tracking-tighter font-mono bg-emerald-400/10 px-1 rounded-sm border border-emerald-500/20">Goal: ${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 ${isMaxAchieved ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-gray-700'}`}></div>
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <span className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter leading-none mb-1">GOAL</span>
+              <span className="text-xs text-white font-black font-mono bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shadow-lg">${max.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className={`w-3 h-3 rounded-full border-2 border-gray-900 mt-2 ${isMaxAchieved ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-gray-700'}`}></div>
             </div>
           </div>
 
@@ -151,37 +155,37 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
             </div>
           )}
 
-          {/* Overperformance Badge - Repositioned to prevent clipping */}
+          {/* Overperformance Badge - Larger & Centered */}
           {current > max && (
-            <div className="absolute left-0 -bottom-2 w-full flex justify-center">
-              <span className="text-[8px] font-black text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/30 animate-pulse uppercase tracking-[0.2em]">
-                Surplus: +{((current / max - 1) * 100).toFixed(0)}%
+            <div className="absolute left-0 -bottom-3 w-full flex justify-center">
+              <span className="text-[11px] font-black text-cyan-400 bg-cyan-400/10 px-4 py-1.5 rounded-full border-2 border-cyan-400/40 animate-pulse uppercase tracking-[0.25em] shadow-lg shadow-cyan-400/10 backdrop-blur-sm">
+                Surplus Exposure: +{((current / max - 1) * 100).toFixed(0)}%
               </span>
             </div>
           )}
         </div>
 
-        {/* Improved, More Encouraging Status Messaging */}
+        {/* Status Messaging - Condensed Text */}
         <div className="mt-4">
           {isMaxAchieved ? (
-            <div className="flex items-center space-x-3 text-emerald-400 bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/20 text-[11px] font-black animate-float">
+            <div className="flex items-center space-x-3 text-emerald-400 bg-emerald-950/30 p-3 rounded-xl border border-emerald-500/20 animate-float">
               <CheckCircle className="h-4 w-4 shrink-0" />
-              <span className="uppercase tracking-widest">Incredible performance! Goal smashed 🚀</span>
+              <span className="uppercase tracking-widest text-[10px] font-black">Incredible performance! Goal smashed 🚀</span>
             </div>
           ) : isMinAchieved ? (
-            <div className="flex items-center space-x-3 text-green-400 bg-green-950/30 p-3 rounded-xl border border-green-500/20 text-[11px] font-black">
+            <div className="flex items-center space-x-3 text-green-400 bg-green-950/30 p-3 rounded-xl border border-green-500/20">
               <CheckCircle className="h-4 w-4 shrink-0" />
-              <span className="uppercase tracking-widest">Minimum floor reached. Great job! 🎉</span>
+              <span className="uppercase tracking-widest text-[10px] font-black">Minimum floor reached. Great job! 🎉</span>
             </div>
           ) : projection >= max ? (
-            <div className="flex items-center space-x-3 text-blue-400 bg-blue-950/30 p-3 rounded-xl border border-blue-500/20 text-[11px] font-black">
+            <div className="flex items-center space-x-3 text-blue-400 bg-blue-950/30 p-3 rounded-xl border border-blue-500/20">
               <TrendingUp className="h-4 w-4 shrink-0" />
-              <span className="uppercase tracking-widest">On track to hit your targets 📈</span>
+              <span className="uppercase tracking-widest text-[10px] font-black">On track to hit your targets 📈</span>
             </div>
           ) : current > 0 && (
-            <div className="flex items-center space-x-3 text-yellow-400 bg-yellow-950/20 p-3 rounded-xl border border-yellow-500/20 text-[11px] font-black">
+            <div className="flex items-center space-x-3 text-yellow-400 bg-yellow-950/20 p-3 rounded-xl border border-yellow-500/20">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span className="uppercase tracking-widest">Keep pushing to reach that goal</span>
+              <span className="uppercase tracking-widest text-[10px] font-black">Keep pushing to reach that goal</span>
             </div>
           )}
         </div>
