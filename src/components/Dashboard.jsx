@@ -79,22 +79,26 @@ const PremiumProgressBar = ({ label, current, min, max, icon: Icon, projection }
       </div>
 
       <div className="flex-1 flex flex-col justify-between relative z-10">
-        {/* Current Position Row - Synchronized Alignment */}
-        <div className="flex justify-between items-start mb-6 h-20">
-          <div className="flex flex-col justify-between h-full">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em]">Current Position</p>
+        {/* Current Position Row - Streamlined Spacing */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex flex-col">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em] mb-1.5">Current Position</p>
             <div className="flex flex-col">
               <span className="text-4xl font-black text-white font-mono leading-none tracking-tighter">${current.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              {projection && (
-                <div className="flex items-center space-x-2 mt-2">
-                  <span className="text-[8px] text-blue-400 font-black uppercase tracking-[0.1em] border border-blue-500/30 px-1.5 py-0.5 rounded bg-blue-500/5">Proj.</span>
-                  <span className="text-sm font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                </div>
-              )}
+              <div className="h-6 mt-2">
+                {projection ? (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[8px] text-blue-400 font-black uppercase tracking-[0.1em] border border-blue-500/30 px-1.5 py-0.5 rounded bg-blue-500/5">Proj.</span>
+                    <span className="text-sm font-black text-blue-300 font-mono tracking-tight">${projection.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  </div>
+                ) : (
+                  <div className="opacity-0">Placeholder</div>
+                )}
+              </div>
             </div>
           </div>
-          <div className="text-right flex flex-col justify-between h-full">
-            <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">of target</p>
+          <div className="text-right flex flex-col items-end">
+            <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-1.5">% of target</p>
             <span className={`text-4xl font-black font-mono leading-none tracking-tighter ${isMinAchieved ? 'text-emerald-400' : 'text-yellow-400'}`}>
               {((current / max) * 100).toFixed(0)}%
             </span>
