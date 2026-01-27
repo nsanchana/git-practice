@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { TrendingUp, BarChart3, Settings, Download, RefreshCw, LogOut, Cloud, CloudOff } from 'lucide-react'
+import { TrendingUp, BarChart3, Settings, Download, RefreshCw, LogOut, Cloud, CloudOff, Briefcase } from 'lucide-react'
 import CompanyResearch from './components/CompanyResearch'
 import TradeReview from './components/TradeReview'
 import Dashboard from './components/Dashboard'
+import StockPortfolio from './components/StockPortfolio'
 import SettingsPanel from './components/SettingsPanel'
 import Login from './components/Login'
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from './utils/storage'
@@ -25,6 +26,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [researchData, setResearchData] = useState([])
   const [tradeData, setTradeData] = useState([])
+  const [stockData, setStockData] = useState([])
   const [settings, setSettings] = useState({
     portfolioSize: 71000,
     weeklyPremiumTarget: { min: 340, max: 410 },
@@ -61,6 +63,10 @@ function App() {
       if (cloudData.settings) {
         setSettings(cloudData.settings)
         saveToLocalStorage('settings', cloudData.settings)
+      }
+      if (cloudData.stockData && Array.isArray(cloudData.stockData)) {
+        setStockData(cloudData.stockData)
+        saveToLocalStorage('stockData', cloudData.stockData)
       }
 
       setLastCloudSync(cloudData.lastSynced ? new Date(cloudData.lastSynced) : null)
@@ -140,6 +146,8 @@ function App() {
     if (savedResearch) setResearchData(savedResearch)
     if (savedTrades) setTradeData(savedTrades)
     if (savedSettings) setSettings(savedSettings)
+    const savedStocks = loadFromLocalStorage('stockData')
+    if (savedStocks) setStockData(savedStocks)
 
     // Then sync from cloud (will override local data if cloud has data)
     loadFromCloud(user.id || user.username)
@@ -157,13 +165,14 @@ function App() {
     if (!user) return
 
     // Don't save on initial load
-    const hasData = researchData.length > 0 || tradeData.length > 0
+    const hasData = researchData.length > 0 || tradeData.length > 0 || stockData.length > 0
 
     if (hasData) {
       debouncedSaveToCloud(user.id || user.username, {
         researchData,
         tradeData,
-        settings
+        settings,
+        stockData
       })
     }
 
@@ -173,7 +182,7 @@ function App() {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [user, researchData, tradeData, settings, debouncedSaveToCloud])
+  }, [user, researchData, tradeData, settings, debouncedSaveToCloud, stockData])
 
   const handleExportResearch = () => {
     exportToCSV(researchData, 'company-research')
@@ -216,6 +225,7 @@ function App() {
     // Clear local data
     setResearchData([])
     setTradeData([])
+    setStockData([])
   }
 
   // Show loading spinner while checking auth
@@ -239,6 +249,7 @@ function App() {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'research', label: 'Company Research', icon: BarChart3 },
     { id: 'trades', label: 'Trades', icon: TrendingUp },
+    { id: 'stocks', label: 'Stocks', icon: Briefcase },
     { id: 'settings', label: 'Settings', icon: Settings }
   ]
 
@@ -355,6 +366,7 @@ function App() {
             setResearchData={setResearchData}
             tradeData={tradeData}
             setTradeData={setTradeData}
+            stockData={stockData}
             settings={settings}
           />
         )}
@@ -372,6 +384,12 @@ function App() {
             portfolioSettings={settings}
             researchData={researchData}
             lastRefresh={lastRefresh}
+          />
+        )}
+        {activeTab === 'stocks' && (
+          <StockPortfolio
+            stockData={stockData}
+            setStockData={setStockData}
           />
         )}
         {activeTab === 'settings' && (

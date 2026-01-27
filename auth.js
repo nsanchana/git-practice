@@ -47,6 +47,23 @@ const AICache = sequelize.define('AICache', {
   }
 })
 
+// Define UserData model for cloud sync
+const UserData = sequelize.define('UserData', {
+  userId: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false
+  },
+  data: {
+    type: DataTypes.TEXT, // Storing JSON string
+    allowNull: false
+  },
+  lastSynced: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  }
+})
+
 // Initialize session store
 const sessionStore = new SessionStore({
   db: sequelize
@@ -111,4 +128,4 @@ export function getSessionConfig(secret) {
 // Initialize session store
 sessionStore.sync()
 
-export { User, AICache, sequelize }
+export { User, AICache, UserData, sequelize }

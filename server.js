@@ -7,7 +7,9 @@ import dotenv from 'dotenv'
 import {
   requireAuth,
   getSessionConfig,
-  AICache
+  getSessionConfig,
+  AICache,
+  UserData
 } from './auth.js'
 
 // Load environment variables
@@ -1064,6 +1066,62 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
       email: null
     }
   })
+})
+
+// User Data Sync Routes
+app.get('/api/user-data', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) return res.status(400).json({ error: 'User ID is required' })
+
+    const userData = await UserData.findOne({ where: { userId } })
+
+    if (!userData) {
+      return res.json({ researchData: [], tradeData: [], stockData: [], settings: null, lastSynced: null })
+    }
+
+    const parsedData = JSON.parse(userData.data)
+    res.json({
+      ...parsedData,
+      lastSynced: userData.lastSynced
+    })
+  } catch (error) {
+    console.error('Error fetching user data:', error)
+    res.status(500).json({ error: 'Failed to fetch user data' })
+  }
+})
+
+app.post('/api/user-data', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.query
+    const data = req.body
+
+    if (!userId) return res.status(400).json({ error: 'User ID is required' })
+
+    const dataString = JSON.stringify(data)
+    const now = new Date()
+
+    const [record, created] = await UserData.findOrCreate({
+      where: { userId },
+      defaults: {
+        userId,
+        data: dataString,
+        lastSynced: now
+      }
+    })
+
+    if (!created) {
+      await record.update({
+        data: dataString,
+        lastSynced: now
+      })
+    }
+
+    res.json({ success: true, lastSynced: now })
+  } catch (error) {
+    console.error('Error saving user data:', error)
+    res.status(500).json({ error: 'Failed to save user data' })
+  }
 })
 
 // Protected API Routes (require authentication)

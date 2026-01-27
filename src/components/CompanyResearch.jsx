@@ -7,9 +7,9 @@ import { saveToLocalStorage } from '../utils/storage'
 const formatDateDDMMYYYY = (dateString) => {
   const date = new Date(dateString)
   const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase()
   const year = date.getFullYear()
-  return `${day}/${month}/${year}`
+  return `${day} ${month} ${year}`
 }
 
 // Helper function to format time as HH:MM:SS
@@ -195,16 +195,27 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
         setCompanyData(prev => {
           const updated = { ...prev, [section]: sectionData }
 
-          // Recalculate overall rating if possible
-          const sectionRatings = [
-            updated.companyAnalysis?.rating || 0,
+          // Flattened overall rating calculation for higher granularity
+          // Incorporate all sub-ratings from companyAnalysis directly
+          const companyPillars = [
+            updated.companyAnalysis?.detailedAnalysis?.marketPosition?.rating || 0,
+            updated.companyAnalysis?.detailedAnalysis?.businessModel?.rating || 0,
+            updated.companyAnalysis?.detailedAnalysis?.industryTrends?.rating || 0,
+            updated.companyAnalysis?.detailedAnalysis?.customerBase?.rating || 0,
+            updated.companyAnalysis?.detailedAnalysis?.growthStrategy?.rating || 0,
+            updated.companyAnalysis?.detailedAnalysis?.economicMoat?.rating || 0
+          ].filter(r => r > 0)
+
+          const otherModules = [
             updated.financialHealth?.rating || 0,
             updated.technicalAnalysis?.rating || 0,
             updated.recentDevelopments?.rating || 0
-          ].filter(rating => rating > 0)
+          ].filter(r => r > 0)
 
-          if (sectionRatings.length > 0) {
-            updated.overallRating = Math.round((sectionRatings.reduce((sum, rating) => sum + rating, 0) / sectionRatings.length) * 10)
+          const allRatings = [...companyPillars, ...otherModules]
+
+          if (allRatings.length > 0) {
+            updated.overallRating = Math.round((allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length) * 10)
           }
 
           return updated
@@ -1041,6 +1052,40 @@ function CompanyResearch({ researchData, setResearchData, lastRefresh }) {
                             {parseFloat(upsidePercent) >= 0 ? '+' : ''}{upsidePercent}%
                           </>
                         ) : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detailed Ratings & Earnings */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 border-t border-white/5 pt-4">
+                    <div className="bg-white/5 rounded-lg p-2 text-center">
+                      <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest mb-1">Company</div>
+                      <div className={`text-sm font-bold ${(item.companyAnalysis?.rating || 0) >= 7 ? 'text-green-400' :
+                        (item.companyAnalysis?.rating || 0) >= 5 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                        {item.companyAnalysis?.rating || '-'}/10
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-2 text-center">
+                      <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest mb-1">Technical</div>
+                      <div className={`text-sm font-bold ${(item.technicalAnalysis?.rating || 0) >= 7 ? 'text-green-400' :
+                        (item.technicalAnalysis?.rating || 0) >= 5 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                        {item.technicalAnalysis?.rating || '-'}/10
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-lg p-2 text-center">
+                      <div className="text-[9px] text-gray-500 uppercase font-bold tracking-widest mb-1">Developments</div>
+                      <div className={`text-sm font-bold ${(item.recentDevelopments?.rating || 0) >= 7 ? 'text-green-400' :
+                        (item.recentDevelopments?.rating || 0) >= 5 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                        {item.recentDevelopments?.rating || '-'}/10
+                      </div>
+                    </div>
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center flex flex-col justify-center">
+                      <div className="text-[9px] text-blue-400/70 uppercase font-bold tracking-widest mb-1">Next Earnings</div>
+                      <div className="text-xs font-bold text-blue-100">
+                        {item.recentDevelopments?.detailedDevelopments?.nextEarningsCall?.date || item.recentDevelopments?.nextEarningsDate || 'N/A'}
                       </div>
                     </div>
                   </div>

@@ -118,35 +118,39 @@ Available Data:
 - Net Income: ${scrapedData.netIncome || 'Not available'}
 - PE Ratio: ${scrapedData.peRatio || 'Not available'}
 
-Provide a detailed analysis in the following JSON format. For each category, provide substantive analysis (3-5 sentences minimum) and a rating from 0-10:
+Provide a detailed analysis in the following JSON format. For each category, provide substantive analysis (3-5 sentences minimum) and a rating from 0-10 based on the following rubric:
+- 0-3: Extremely Weak / Significant Distress / High Risk
+- 4-5: Average / Neutral / Fair
+- 6-8: Strong / Solid Competitive Position / Growth
+- 9-10: Exceptional / Dominant Market Leader / Pristine Fundamentals
 
 {
   "marketPosition": {
-    "analysis": "Detailed analysis of the company's position in the market, competitive advantages, industry dynamics, and market share...",
-    "rating": 7
+    "analysis": "Detailed analysis of the company's position in the market...",
+    "rating": [use rubric]
   },
   "businessModel": {
-    "analysis": "Detailed evaluation of how the company generates revenue, key revenue streams, business model sustainability, and recurring revenue potential...",
-    "rating": 7
+    "analysis": "Detailed evaluation of how the company generates revenue...",
+    "rating": [use rubric]
   },
   "industryTrends": {
-    "analysis": "Analysis of industry trends, external factors impacting performance, regulatory environment, technological disruption, and macroeconomic influences...",
-    "rating": 7
+    "analysis": "Analysis of industry trends...",
+    "rating": [use rubric]
   },
   "customerBase": {
-    "analysis": "Assessment of customer base composition, concentration risks, customer retention, geographic diversification, and dependency on key customers...",
-    "rating": 7
+    "analysis": "Assessment of customer base composition...",
+    "rating": [use rubric]
   },
   "growthStrategy": {
-    "analysis": "Investigation of future growth plans, product development pipeline, expansion strategies, M&A activity, and long-term market success potential...",
-    "rating": 7
+    "analysis": "Investigation of future growth plans...",
+    "rating": [use rubric]
   },
   "economicMoat": {
-    "analysis": "Economic moat analysis covering brand loyalty, barriers to entry, switching costs, network effects, economies of scale, patents/IP, and cost advantages...",
-    "rating": 7
+    "analysis": "Economic moat analysis...",
+    "rating": [use rubric]
   },
-  "overallRating": 7,
-  "summary": "2-3 sentence executive summary of the overall investment thesis..."
+  "overallRating": [average of ratings above],
+  "summary": "2-3 sentence executive summary..."
 }
 
 Be specific, factual, and thorough. Use your knowledge of ${symbol} to provide meaningful insights. Return ONLY valid JSON.`
@@ -511,7 +515,23 @@ async function scrapeFinancialHealth(symbol) {
         metrics.push({ label, value })
       }
     })
-    if (metrics.length > 3) rating += 2
+
+    // Dynamic rating based on metric quality (basic heuristic)
+    const margins = metrics.filter(m => m.label.toLowerCase().includes('margin'))
+    const positiveMargins = margins.filter(m => parseFloat(m.value) > 0).length
+    const growth = metrics.filter(m => m.label.toLowerCase().includes('growth'))
+    const positiveGrowth = growth.filter(m => parseFloat(m.value) > 0).length
+
+    if (metrics.length > 0) {
+      rating = 5 // Start at neutral
+      if (positiveMargins > 0) rating += 1
+      if (positiveGrowth > 0) rating += 1
+      if (metrics.length > 5) rating += 1
+      // Cap at 9 for purely scraped data without AI deeper context
+      rating = Math.min(rating, 9)
+    } else {
+      rating = 4 // Underperforming/No Data
+    }
   } catch (error) {
     console.log('Financial scraping failed')
   }
@@ -818,7 +838,19 @@ async function scrapeOptionsData(symbol) {
         metrics.push({ label, value })
       }
     })
-    if (metrics.length > 0) rating += 2
+
+    if (metrics.length > 0) {
+      // Dynamic rating for options: higher liquidity/volume = better rating for analysis tool
+      const volume = metrics.find(m => m.label.toLowerCase().includes('volume'))
+      const openInt = metrics.find(m => m.label.toLowerCase().includes('open interest'))
+
+      rating = 5 // Start neutral
+      if (volume && parseInt(volume.value.replace(/,/g, '')) > 1000) rating += 1
+      if (openInt && parseInt(openInt.value.replace(/,/g, '')) > 5000) rating += 1
+      if (metrics.length >= 5) rating += 1
+    } else {
+      rating = 4
+    }
   } catch (error) {
     console.log('Options scraping failed')
   }

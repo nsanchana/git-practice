@@ -7,9 +7,9 @@ import { saveToLocalStorage } from '../utils/storage'
 const formatDateDDMMYYYY = (dateString) => {
   const date = new Date(dateString)
   const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase()
   const year = date.getFullYear()
-  return `${day}/${month}/${year}`
+  return `${day} ${month} ${year}`
 }
 
 function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData }) {
@@ -1073,10 +1073,10 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                     {/* Top Row: Symbol, Type, and Status */}
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h4 className="font-semibold text-lg">
-                          {trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}
-                        </h4>
-                        <div className="flex items-center space-x-2 mt-1">
+                        <h4 className="font-semibold text-lg flex items-center flex-wrap gap-2">
+                          <span>{trade.symbol} {trade.tradeType === 'cashSecuredPut' ? 'Cash-Secured Put' : 'Covered Call'}</span>
+
+                          {/* Status Badges moved here */}
                           {isExpired && (
                             <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded border border-gray-600">
                               EXPIRED
@@ -1097,10 +1097,19 @@ function TradeReview({ tradeData, setTradeData, portfolioSettings, researchData 
                               RESEARCH
                             </span>
                           )}
-                          <span className={`text-sm font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${getRecommendationColor(trade.recommendation.action)}`}>
                             {trade.recommendation.action}
                           </span>
-                        </div>
+
+                          <div className="flex items-center space-x-2 ml-2 hidden md:flex">
+                            <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] text-gray-400 font-mono">
+                              {trade.status === 'executed' ? 'Executed' : 'Planned'}: <span className="text-gray-200 ml-1">{formatDateDDMMYYYY(trade.status === 'executed' ? trade.executionDate : trade.timestamp)}</span>
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] text-gray-400 font-mono">
+                              Expires: <span className="text-gray-200 ml-1">{formatDateDDMMYYYY(trade.expirationDate)}</span>
+                            </span>
+                          </div>
+                        </h4>
                       </div>
                       <div className="flex items-center space-x-2">
                         {trade.status === 'planned' && (
